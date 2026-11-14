@@ -33,6 +33,9 @@ export const LANES = {
   bot: [[-60, 9], [-66, 44], [-56, SIDE_Z], [56, SIDE_Z], [66, 44], [60, 9]],
 };
 export const LANE_IDS = ['top', 'mid', 'bot'];
+// Rio: corta o mapa de norte a sul (cruz com a mid), ligando a lane top à bot. Raso: dá para andar.
+export const RIVER_HALF = 3.6, RIVER_Z = SIDE_Z - 2;
+export const riverX = (z) => 4.5 * Math.sin(z * 0.075) + 1.5 * Math.sin(z * 0.21);
 export const laneZ = (id) => (id === 'top' ? -SIDE_Z : id === 'bot' ? SIDE_Z : 0);
 // Referencial local da lane no ponto (x,z) para quem anda no sentido `dir` (+1 AXIOM→EKOO, -1 o contrário):
 // f = direção de avanço, n = normal (esquerda), off = deslocamento lateral do ponto em relação ao eixo.
@@ -108,6 +111,7 @@ export function navDist(x, z, out) {
     if (d < best) { best = d; if (d > 0) { bx = px + (dx / l) * r; bz = pz + (dz / l) * r; } else { bx = x; bz = z; } }
   };
   if (Math.abs(z) > 4) {
+    if (Math.abs(z) <= RIVER_Z) test(riverX(z), z, RIVER_HALF);
     for (const id of ['top', 'bot']) { const P = LANES[id]; for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [ex, ez] = P[i + 1], vx = ex - ax, vz = ez - az, t = clamp(((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz), 0, 1); test(ax + vx * t, az + vz * t, LANE_HALF + 0.1 * widenSide(ax + vx * t)); } }
     for (const [ax, az, ex, ez] of PATHS) { const vx = ex - ax, vz = ez - az, t = clamp(((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz), 0, 1); test(ax + vx * t, az + vz * t, PATH_R); }
     for (const c of CAMPS) test(c.x, c.z, c.r);
@@ -144,6 +148,7 @@ function graph() {
   for (const x of [-68, -52, -44, -28, -22, -11, 0, 11, 22, 28, 44, 52, 68]) add(x, 0);
   for (const s of [-1, 1]) for (const z of [-5, 5]) { add(s * TOWER_X, z); add(s * CORE_X, z * 1.3); }                    // slip past either side of a tower / core
   for (const [a, b2, c, d] of PATHS) { add(a, b2); add(c, d); } for (const c of CAMPS) add(c.x, c.z);
+  for (let z = -48; z <= 48; z += 8) add(riverX(z), z);
   for (const id of ['top', 'bot']) { for (const [x, z] of LANES[id]) add(x, z); const z = laneZ(id); for (const x of [-44, -28, -12, 12, 28, 44]) add(x, z); for (const sx of [-1, 1]) for (const dz of [-5, 5]) add(sx * TOWER_X, z + dz); }
   EDGES = NODES.map((a, i) => NODES.map((b2, j) => (i !== j && clear(a[0], a[1], b2[0], b2[1]) ? Math.hypot(a[0] - b2[0], a[1] - b2[1]) : 0)));
 }

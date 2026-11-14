@@ -52,8 +52,8 @@ export function buildWorld(scene, renderer, quality) {
   const H = heightAt;
   // Layout: a town block (|x| < 16) and outer blocks (|x| > 27) wall the lane off from the jungle;
   // the gaps at |x| ~ 22 are the jungle trail mouths.
-  P.silo(b, R, -7, -13.5, { r: 3.6, h: 13 }); P.silo(b, R, 0.5, -17, { r: 3.3, h: 11.5, tint: 0xcbbfb0 }); P.silo(b, R, -12.5, -19.5, { r: 2.6, h: 9, tint: 0xc4b6a2 });
-  P.silo(b, R, 11.5, 18.5, { r: 3, h: 10.5, tint: 0xd0c2b4 }); P.silo(b, R, 5.5, 21.5, { r: 2.4, h: 8 });
+  P.silo(b, R, -13, -12.5, { r: 3.6, h: 13 }); P.silo(b, R, 8.5, -19.5, { r: 3.3, h: 11.5, tint: 0xcbbfb0 }); P.silo(b, R, -18.5, -19, { r: 2.6, h: 9, tint: 0xc4b6a2 });   // afastados do rio
+  P.silo(b, R, 13, 19, { r: 3, h: 10.5, tint: 0xd0c2b4 }); P.silo(b, R, -7, 22, { r: 2.4, h: 8 });
   P.beam(b, M.rust, [-7, 12.6, -13.5], [0.5, 11.2, -17], 0.5, 0x8a6a54, 0.7);      // conveyor between silos
   P.greenhouse(b, g, R, 10, -11.5, 0.06, { len: 11 }); P.greenhouse(b, g, R, -9, 13.5, 0.05, { len: 13 });
   P.greenhouse(b, g, R, -31.5, -13, -0.06, { len: 9, ruined: true }); P.greenhouse(b, g, R, 31.5, 13.5, -0.06, { len: 9, ruined: true });

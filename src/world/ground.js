@@ -2,7 +2,7 @@
 // plus a tint map (large-scale variation, tyre tracks, mud, oil, frost, AXIOM plating) and an emissive mask.
 import * as THREE from 'three';
 import { mk, pbr } from '../core/tex.js';
-import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS, BRUSH, LANES } from '../core/util.js';
+import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS, BRUSH, LANES, riverX, RIVER_HALF, RIVER_Z } from '../core/util.js';
 
 export const SIZE_X = 230, SIZE_Z = 180;
 export const FARMS = [
@@ -130,11 +130,13 @@ export function buildGround(scene) {
     tGrassO: { value: grass.orm }, tDirtD: { value: dirt.d }, tDirtN: { value: dirt.n }, tDirtO: { value: dirt.orm },
     tGravD: { value: grav.d }, tGravN: { value: grav.n }, tGravO: { value: grav.orm },
     tSplat: { value: paintSplat(R) }, tTint: { value: paintTint(R) }, tEmis: { value: paintEmis() }, uTile: { value: new THREE.Vector2(SIZE_X / 5, SIZE_Z / 5) }, uSize: { value: new THREE.Vector2(SIZE_X, SIZE_Z) },
+    uRiver: { value: new THREE.Vector3(RIVER_HALF, RIVER_Z, 0) },
     uStyl: { value: new URLSearchParams(location.search).get('styl') !== '0' ? 1 : 0 },
   };
   mat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, U);
-    s.fragmentShader = `uniform sampler2D tGrassO,tDirtD,tDirtN,tDirtO,tGravD,tGravN,tGravO,tSplat,tTint,tEmis; uniform vec2 uTile, uSize; uniform float uStyl;
+    s.fragmentShader = `uniform sampler2D tGrassO,tDirtD,tDirtN,tDirtO,tGravD,tGravN,tGravO,tSplat,tTint,tEmis; uniform vec2 uTile, uSize; uniform float uStyl; uniform vec3 uRiver;
+      float rX(float z){ return 4.5 * sin(z * .075) + 1.5 * sin(z * .21); }
       // ---- chão pintado (estilo Quaternius): ruído de valor + traços de lâmina, sem textura fotográfica ----
       float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
@@ -174,7 +176,16 @@ export function buildGround(scene) {
         gRough = mix(orm.g, .1, wet); gMetal = wp * .3;
         gN = mix(gN, vec3(.5, .5, 1.), wet * .8);
         if (uStyl > .5) { gN = mix(vec3(.5, .5, 1.), gN, .35); gRough = 1.; }
-        diffuseColor.rgb = alb * mix(1., orm.r, uStyl > .5 ? .25 : .75);`)
+        diffuseColor.rgb = alb * mix(1., orm.r, uStyl > .5 ? .25 : .75);
+        // ---- rio: água rasa turquesa, margem de lama, reflexo do céu (rugosidade baixa) ----
+        { vec2 w = (vMapUv - .5) * uSize; w.y = -w.y; float dz = abs(w.y) - uRiver.y, d = abs(w.x - rX(w.y)) + (gf(w * .3) - .5) * .9 + max(dz, 0.) * 2.;
+          float bank = 1. - smoothstep(uRiver.x - .2, uRiver.x + 1.2, d), water = 1. - smoothstep(uRiver.x - 1.1, uRiver.x - .3, d);
+          vec3 mud = vec3(.11, .085, .05), deep = vec3(.02, .09, .10), shallow = vec3(.05, .20, .19);
+          float rip = gn(vec2(w.x * 1.6, w.y * .35)) * gn(w * .9 + 5.);
+          vec3 wc = mix(shallow, deep, smoothstep(0., uRiver.x, uRiver.x - d)) + rip * .05;
+          diffuseColor.rgb = mix(diffuseColor.rgb, mud, bank * .8);
+          diffuseColor.rgb = mix(diffuseColor.rgb, wc, water);
+          gRough = mix(gRough, .08, water); gN = mix(gN, normalize(vec3(.5 + (rip - .25) * .2, .5, 1.)), water); gMetal = mix(gMetal, 0., water); }`)
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = gRough;')
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = gMetal;')
       .replace('#include <normal_fragment_maps>', 'normal = normalize(tbn * (gN * 2. - 1.));')
