@@ -126,11 +126,21 @@ export function buildGround(scene) {
   const U = {
     tGrassO: { value: grass.orm }, tDirtD: { value: dirt.d }, tDirtN: { value: dirt.n }, tDirtO: { value: dirt.orm },
     tGravD: { value: grav.d }, tGravN: { value: grav.n }, tGravO: { value: grav.orm },
-    tSplat: { value: paintSplat(R) }, tTint: { value: paintTint(R) }, tEmis: { value: paintEmis() }, uTile: { value: new THREE.Vector2(SIZE_X / 5, SIZE_Z / 5) },
+    tSplat: { value: paintSplat(R) }, tTint: { value: paintTint(R) }, tEmis: { value: paintEmis() }, uTile: { value: new THREE.Vector2(SIZE_X / 5, SIZE_Z / 5) }, uSize: { value: new THREE.Vector2(SIZE_X, SIZE_Z) },
+    uStyl: { value: new URLSearchParams(location.search).get('styl') !== '0' ? 1 : 0 },
   };
   mat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, U);
-    s.fragmentShader = `uniform sampler2D tGrassO,tDirtD,tDirtN,tDirtO,tGravD,tGravN,tGravO,tSplat,tTint,tEmis; uniform vec2 uTile;
+    s.fragmentShader = `uniform sampler2D tGrassO,tDirtD,tDirtN,tDirtO,tGravD,tGravN,tGravO,tSplat,tTint,tEmis; uniform vec2 uTile, uSize; uniform float uStyl;
+      // ---- chão pintado (estilo Quaternius): ruído de valor + traços de lâmina, sem textura fotográfica ----
+      float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+        return mix(mix(gh(i), gh(i + vec2(1, 0)), f.x), mix(gh(i + vec2(0, 1)), gh(i + vec2(1, 1)), f.x), f.y); }
+      float gf(vec2 p){ return gn(p) * .55 + gn(p * 2.1 + 7.) * .28 + gn(p * 4.3 + 3.) * .17; }
+      // traços curtos de grama: cada célula tem 1 lâmina inclinada; vira textura de pincel vista de cima
+      float blades(vec2 w){ vec2 c = floor(w * 2.2), f = fract(w * 2.2) - .5; float r = gh(c), a = r * 6.283;
+        vec2 d = vec2(cos(a), sin(a)); float along = dot(f, d), across = dot(f, vec2(-d.y, d.x));
+        return (1. - smoothstep(.02, .07, abs(across))) * (1. - smoothstep(.18, .34, abs(along))) * step(.35, r); }
       vec3 gN; float gRough; float gMetal;\n` + s.fragmentShader
       .replace('#include <map_fragment>', /* glsl */`
         vec2 tuv = vMapUv * uTile; vec3 sp = texture2D(tSplat, vMapUv).rgb; vec3 tint = texture2D(tTint, vMapUv).rgb;
@@ -140,6 +150,19 @@ export function buildGround(scene) {
         float wl = smoothstep(.3, .7, sp.r + (aD.r - .3) * 1.4 * (1. - abs(sp.r * 2. - 1.)));
         float wp = sp.b;
         vec3 alb = mix(mix(aG, aV * vec3(.9, .86, .8), wv), aD, wl);
+        if (uStyl > .5) {
+          vec2 w = vMapUv * uSize;                                     // coordenadas de mundo
+          float m = gf(w * .045), m2 = gf(w * .16 + 11.);
+          vec3 g1 = vec3(.045, .10, .025), g2 = vec3(.075, .15, .035), g3 = vec3(.17, .17, .06);   // (linear)   // manchas: verde fundo → verde claro → palha
+          vec3 gr = mix(g1, g2, smoothstep(.35, .6, m)); gr = mix(gr, g3, smoothstep(.62, .8, m2) * .7);
+          gr *= .92 + blades(w) * .22 - blades(w + 3.7) * .08;         // pincelada clara/escura
+          vec3 dr = mix(vec3(.20, .13, .075), vec3(.27, .19, .11), gf(w * .2));   // terra quente, lisa
+          dr *= .94 + step(.93, gh(floor(w * 3.))) * .12;              // pedrisco
+          // borda da trilha irregular: o ruído empurra a transição (sem linha reta)
+          float wl2 = smoothstep(.42, .58, sp.r + (gf(w * .35) - .5) * .35);
+          alb = mix(mix(gr, aV * vec3(.9, .86, .8), wv), dr, wl2);
+          aG = vec3(.5); wl = wl2;
+        }
         vec3 orm = mix(mix(texture2D(tGrassO, tuv).rgb, texture2D(tGravO, tuv * .7).rgb, wv), texture2D(tDirtO, tuv * .8).rgb, wl);
         gN = mix(mix(texture2D(normalMap, tuv).rgb, texture2D(tGravN, tuv * .7).rgb, wv), texture2D(tDirtN, tuv * .8).rgb, wl);
         alb = mix(alb, vec3(.34, .38, .44), wp); orm = mix(orm, vec3(1., .5, 0.), wp); gN = mix(gN, vec3(.5, .5, 1.), wp);
@@ -147,7 +170,8 @@ export function buildGround(scene) {
         float wet = smoothstep(.34, .16, dot(tint, vec3(.333))) * (1. - wp);     // mud / oil decals turn glossy
         gRough = mix(orm.g, .1, wet); gMetal = wp * .3;
         gN = mix(gN, vec3(.5, .5, 1.), wet * .8);
-        diffuseColor.rgb = alb * mix(1., orm.r, .75);`)
+        if (uStyl > .5) { gN = mix(vec3(.5, .5, 1.), gN, .35); gRough = 1.; }
+        diffuseColor.rgb = alb * mix(1., orm.r, uStyl > .5 ? .25 : .75);`)
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = gRough;')
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = gMetal;')
       .replace('#include <normal_fragment_maps>', 'normal = normalize(tbn * (gN * 2. - 1.));')

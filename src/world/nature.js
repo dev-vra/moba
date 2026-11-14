@@ -10,11 +10,11 @@ const CHUNK = 32;
 // tipo -> [modelos, escala base]  (Quaternius ~1u = 1m; nossa câmera pede exagero leve)
 const KINDS = {
   tree: [T('U_MapleTree_1', 'U_MapleTree_2', 'U_MapleTree_3', 'U_BirchTree_1', 'U_BirchTree_3'), 1.25],
-  bush: [T('Bush_Common', 'U_Bush_Large', 'U_Bush_Small', 'Bush_Common_Flowers'), 1.5],
+  bush: [T('U_Bush_Large', 'U_Bush_Small', 'Bush_Common_Flowers'), 1.5],
   rock: [T('Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3'), 0.75],
   dead: [T('U_DeadTree_6', 'U_DeadTree_7', 'U_DeadTree_9'), 1.1],
   grass: [T('Grass_Common_Tall', 'Grass_Wispy_Tall', 'U_Grass_Large', 'Fern_1', 'Plant_7_Big', 'Flower_3_Group', 'Clover_1'), 1.6],
-  moita: [T('Bush_Common', 'U_Bush_Large', 'Bush_Common_Flowers', 'U_Bush_Large_Flowers', 'Bush_Common'), 2.1],
+  moita: [T('U_Bush_Large', 'U_Bush_Small', 'U_Bush_Large', 'Bush_Common_Flowers'), 2.1],
   plant: [T('Plant_1_Big', 'Fern_1', 'U_Bush_Small', 'Flower_4_Group', 'Plant_7_Big', 'Bush_Common_Flowers'), 1.6],
   flower: [T('Flower_3_Group', 'Flower_4_Group', 'Clover_1', 'Fern_1', 'Mushroom_Common'), 1.3],
   pebble: [T('Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Square_1', 'Pebble_Square_2'), 1.4],
