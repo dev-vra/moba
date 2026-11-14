@@ -175,7 +175,15 @@ export function buildWorld(scene, renderer, quality) {
   // ---------- milharais: tall corn patches heroes can hide in (fade when the local hero is inside) ----------
   const tall = stalkGeo.clone(); tall.scale(1.5, 2.5, 1.5);
   const brushMeshes = [];
-  const brush = BRUSH.map((z) => {
+  // moitas (estilo novo): arbustos Quaternius densos por zona; cada zona tem seus materiais p/ o fade de esconderijo
+  const brush = STYL ? BRUSH.map((z, zi) => {
+    const zone = { opacity: 1, mats: [] }, n = Math.round(z.r * z.r * 0.55) + 3;
+    for (let i = 0; i < n; i++) {
+      const a = R() * 6.283, d = Math.sqrt(R()) * z.r * 0.95, x = z.x + Math.cos(a) * d, zz = z.z + Math.sin(a) * d;
+      NAT.push({ kind: 'moita', x, y: H(x, zz), z: zz, s: 1 + R() * 0.45 * (1 - d / z.r), zone: zi, bare: R() < 0.6 });
+    }
+    return zone;
+  }) : BRUSH.map((z) => {
     const n = Math.round(z.r * z.r * 9), mat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, transparent: true, opacity: 1 }), m = new THREE.InstancedMesh(tall, mat, n);
     for (let i = 0; i < n; i++) {
       const a = R() * 6.283, d = Math.sqrt(R()) * z.r; dummy.position.set(z.x + Math.cos(a) * d, 0, z.z + Math.sin(a) * d); dummy.rotation.set((R() - 0.5) * 0.25, R() * 6.28, (R() - 0.5) * 0.25); dummy.scale.setScalar(0.8 + R() * 0.5); dummy.updateMatrix();
@@ -244,9 +252,12 @@ export function buildWorld(scene, renderer, quality) {
   const drones = [0, 1, 2].map((i) => { const d = droneDecor(scene); d.userData = { r: 13 + i * 4, h: 13 + i * 2.5, sp: 0.35 - i * 0.07, p: i * 2.1 }; return d; });
 
   return {
-    nat: NAT, brushMeshes, grass,
+    nat: NAT, brushMeshes, grass, brush,
     update(t, dt, focus, dist, cam, zone = -1) {
-      brush.forEach((m, i) => { m.opacity += ((i === zone ? 0.35 : 1) - m.opacity) * Math.min(1, dt * 8); });
+      brush.forEach((m, i) => {
+        m.opacity += ((i === zone ? 0.35 : 1) - m.opacity) * Math.min(1, dt * 8);
+        if (m.mats) for (const mm of m.mats) { mm.opacity = m.opacity; const t = m.opacity < 0.98; if (mm.transparent !== t) { mm.transparent = t; mm.depthWrite = !t; mm.needsUpdate = true; } }
+      });
       // shadow frustum fitted to the visible ground footprint, snapped to texels (no shimmer while panning)
       const half = Math.ceil(dist * 0.8 / 4) * 4;
       if (half !== sHalf) { sHalf = half; Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 220 }); sun.shadow.camera.updateProjectionMatrix(); }

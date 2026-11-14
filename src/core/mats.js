@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { T, pbr } from './tex.js';
+import { seeThrough } from '../render/seethrough.js';
 
 const noShadow = (m) => { m.userData.noShadow = true; m.userData.raw = true; return m; };
 // PBR set from public/tex; `tile` = world units per texture repeat (same density everywhere)
@@ -31,6 +32,7 @@ export const M = {
   glow: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })),
   glowSoft: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })),
 };
+for (const [k, m] of Object.entries(M)) if (!k.startsWith('glow')) seeThrough(m);   // raio-X do herói em todo o cenário
 M.leaf.userData.raw = true; M.wood.userData.tile = 2; M.wood.userData.keepTint = true; M.tarp.userData.keepTint = true;
 
 // Environment emissives are deliberately restrained so hero / skill VFX own the bright, saturated range.

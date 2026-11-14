@@ -10,6 +10,7 @@ import { Hero } from './game/hero.js';
 import { Bot } from './game/bot.js';
 import { KITS, PLAYABLE } from './game/kits/index.js';
 import { inBrush } from './core/util.js';
+import { updateSeeThrough } from './render/seethrough.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -30,7 +31,7 @@ const scene = new THREE.Scene();
 const rig = new CameraRig(innerWidth / innerHeight);
 const world = buildWorld(scene, renderer, quality);
 if (world.nat?.length) import('./world/nature.js').then((m) => {
-  m.buildNature(scene, renderer, world.nat);
+  m.buildNature(scene, renderer, world.nat, world.brush);
 });
 if (q.get('ph') === '1') import('./world/dressing.js').then((m) => m.dress(scene, renderer));   // props Poly Haven (fotorreal) — fora do estilo novo
 const post = createPost(renderer, scene, rig.camera, quality, { ...Object.fromEntries(q), ink: style === 'hq' });
@@ -61,6 +62,7 @@ renderer.setAnimationLoop(() => {
     scene.fog.color.lerpColors(fog0, VIOLET, ev * 0.55); scene.background.copy(scene.fog.color); scene.environmentIntensity = 0.45 - ev * 0.2;
   }
   rig.update(dt);
+  if (hero) updateSeeThrough(renderer, rig.camera, hero.pos, hero.alive);
   world.update(t, dt, rig.target, rig.dist, rig.camera, hero && hero.alive ? inBrush(hero.pos.x, hero.pos.z) : -1); if (hero) hud.update(hero, game.t, game, rig, dt);
   post.render();
   if (loaded && scene.environment && ++frames === 3) { document.getElementById('boot').classList.add('off'); window.__loaded = true; }
