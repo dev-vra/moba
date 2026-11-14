@@ -143,7 +143,9 @@ export class HUD {
   // hero select: resolves with the chosen kit id
   pickHero(kits) {
     return new Promise((res) => {
-      const box2 = this.pickEl.querySelector('.opts'); this.pickEl.classList.add('on');
+      const box2 = this.pickEl.querySelector('.opts'); this.pickEl.classList.add('on'); this.diff = localStorage.getItem('ekoo.diff') || 'normal';
+      const dr = document.createElement('div'); dr.className = 'diff'; dr.innerHTML = '<span>DIFICULDADE DA IA</span>' + [['easy', 'FÁCIL'], ['normal', 'NORMAL'], ['hard', 'DIFÍCIL']].map(([k, l]) => `<i data-k="${k}" class="${k === this.diff ? 'on' : ''}">${l}</i>`).join('');
+      dr.onclick = (e) => { const k = e.target.dataset?.k; if (!k) return; this.diff = k; localStorage.setItem('ekoo.diff', k); dr.querySelectorAll('i').forEach((n) => n.classList.toggle('on', n.dataset.k === k)); }; this.pickEl.querySelector('.card').appendChild(dr);
       for (const k of kits) { const c = document.createElement('button'); c.innerHTML = `<i>${k.role}</i><b>${k.name}</b><span>${k.title}</span><p>${k.blurb}</p><ul>${['q', 'w', 'e', 'r'].map((s) => `<li><kbd>${s.toUpperCase()}</kbd> ${k.skills[s].name}</li>`).join('')}</ul>`; c.onclick = () => { this.pickEl.classList.remove('on'); res(k.id); }; box2.appendChild(c); }
     });
   }
@@ -168,8 +170,8 @@ export class HUD {
       if (b.cost) b.cost.textContent = sk.cost || '';
       b.el.classList.toggle('off', locked || left > 0.05 || hero.energy < (sk.cost || 0)); b.el.classList.toggle('lit', !!sk.lit); b.el.classList.toggle('locked', locked);
     }
-    const bk = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => k + Math.ceil(hero.buffs[k] - hero.t)).join(',') + (hero.shield > 0 ? 's' + Math.ceil(hero.shield / 20) : '') + '|' + hero.points + (hero.brush >= 0 ? 'b' + (hero.hidden.ekoo ? 1 : 0) : '');
-    if (bk !== this.bk) { this.bk = bk; this.buffsEl.innerHTML = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => `<div class="${k}" title="${BUFFS[k].desc}"><b>${BUFFS[k].name}</b><i>${Math.ceil(hero.buffs[k] - hero.t)}s</i></div>`).join('') + (hero.shield > 0 ? `<div class="shield"><b>ESCUDO</b><i>${Math.ceil(hero.shield)}</i></div>` : '') + (hero.brush >= 0 ? `<div class="hide"><b>${hero.hidden.ekoo ? 'OCULTO' : 'REVELADO'}</b><i>milharal</i></div>` : '') + (hero.points > 0 ? `<div class="pts"><b>${hero.points} PONTO${hero.points > 1 ? 'S' : ''} DE HABILIDADE</b><i>teclas 1 2 3 4</i></div>` : ''); }
+    const bk = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => k + Math.ceil(hero.buffs[k] - hero.t)).join(',') + (hero.shield > 0 ? 's' + Math.ceil(hero.shield / 20) : '') + '|' + hero.points + (hero.brush >= 0 ? 'b' + (hero.hidden.ekoo ? 1 : 0) : '') + (game.eventUntil > game.t ? 'e' + Math.ceil(game.eventUntil - game.t) : '');
+    if (bk !== this.bk) { this.bk = bk; this.buffsEl.innerHTML = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => `<div class="${k}" title="${BUFFS[k].desc}"><b>${BUFFS[k].name}</b><i>${Math.ceil(hero.buffs[k] - hero.t)}s</i></div>`).join('') + (hero.shield > 0 ? `<div class="shield"><b>ESCUDO</b><i>${Math.ceil(hero.shield)}</i></div>` : '') + (game.eventUntil > game.t ? `<div class="event"><b>⚠ EVENTO 3h17</b><i>sem sinal · ${Math.ceil(game.eventUntil - game.t)}s</i></div>` : '') + (hero.brush >= 0 ? `<div class="hide"><b>${hero.hidden.ekoo ? 'OCULTO' : 'REVELADO'}</b><i>milharal</i></div>` : '') + (hero.points > 0 ? `<div class="pts"><b>${hero.points} PONTO${hero.points > 1 ? 'S' : ''} DE HABILIDADE</b><i>teclas 1 2 3 4</i></div>` : ''); }
 
     if ((this.mmT -= dt) <= 0) {                      // 10 Hz: minimap, stats, shop state
       this.mmT = 0.1; this.drawMap(hero, game, rig);
@@ -181,7 +183,7 @@ export class HUD {
       E.shopBtn.classList.toggle('ready', afford && can && hero.items.length < SLOTS);
       if (this.invDirty || this.invN !== hero.items.length) {
         this.invDirty = false; this.invN = hero.items.length;
-        this.slots.forEach((s, i) => { const it = hero.items[i]; s.innerHTML = it ? svg(`<path d="${it.icon}"/>`) : ''; s.className = 'slot' + (it ? ' full' : ''); s.onpointerenter = it ? () => this.showTip(`<b>${it.name}</b>${it.desc}`) : null; s.onpointerleave = () => this.hideTip(); });
+        this.slots.forEach((s, i) => { const it = hero.items[i]; s.innerHTML = it ? svg(`<path d="${it.icon}"/>`) : ''; s.className = 'slot' + (it ? ' full' : ''); s.onpointerenter = it ? () => this.showTip(`<b>${it.name}</b>${it.desc}<small>Botão direito na base: vender por ${Math.round(it.cost * 0.6)}</small>`) : null; s.onpointerleave = () => this.hideTip(); s.oncontextmenu = (e) => { e.preventDefault(); if (it) { this.input.cmds.push({ t: 'sell', item: it }); this.invDirty = true; } }; });
       }
     }
   }

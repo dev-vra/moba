@@ -30,7 +30,7 @@ class Camp {
 
 export class Game {
   constructor(scene, vfx, hud) {
-    this.scene = scene; this.vfx = vfx; this.hud = hud; this.ents = []; this.heroes = []; this.t = 0; this.timers = []; this.shots = []; this.lines = []; this.zones = []; this.over = null; this.wave = 0; this.nextWave = 3;
+    this.scene = scene; this.vfx = vfx; this.hud = hud; this.ents = []; this.heroes = []; this.t = 0; this.timers = []; this.shots = []; this.lines = []; this.zones = []; this.over = null; this.wave = 0; this.nextWave = 3; this.nextEvent = 197; this.eventUntil = 0;
     this.score = { axiom: 0, ekoo: 0 };            // hero kills only
     this.campScore = { axiom: 0, ekoo: 0 };        // Vessari camps taken
     const sg = new THREE.OctahedronGeometry(0.22, 0); sg.scale(1, 1, 2.6);
@@ -75,10 +75,12 @@ export class Game {
     if (src.isHero && src.buffs.power > this.t) dmg *= 1.18;
     if (crit) dmg *= 2;
     if (target.isHero) dmg *= (1 - (target.armor || 0)) * (src.isHero ? 0.6 : 1);          // heroes are plated against each other: fights last long enough to react
+    if (target.isTower && src.K?.siege) dmg *= src.K.siege;
     if (target.isTower && src.isHero) { dmg *= 0.3 * (src.towerMul || 1); if (!this.alliesNear(src.team, target.pos, 11)) { dmg *= 0.35; shielded = true; } }   // plated structure; shrugs off a lone hero
     dmg = Math.round(dmg * (0.94 + Math.random() * 0.12));
     if (target.shield > 0) { const a = Math.min(target.shield, dmg); target.shield -= a; dmg -= a; if (target === P || src === P) this.vfx.number(target.pos, 'ESCUDO', 'info'); }
-    target.hp -= dmg; target.hurt?.(dmg, src, heavy || crit); if (src.isHero) { src.stat.dmg += dmg; src.combatAt = this.t; }
+    target.hp -= dmg; target.hurt?.(dmg, src, heavy || crit);
+    if (target.isHero && src.isHero) for (const u of this.ents) if (u.isUnit && u.alive && u.lane && u.team === target.team && Math.hypot(u.pos.x - src.pos.x, u.pos.z - src.pos.z) < 9) { u.target = src; u.think = 1.2; }   // minions defend their hero if (src.isHero) { src.stat.dmg += dmg; src.combatAt = this.t; }
     if (src.isHero && src.steal && !target.isTower) src.hp = Math.min(src.maxHp, src.hp + dmg * src.steal);
     if (src === P) {                                                             // full feedback only for the local player
       this.vfx.hit(target.pos, col, heavy || crit); if (dmg > 0) this.vfx.number(target.pos, (crit ? '✦ ' : '') + dmg, crit ? 'crit' : '');
@@ -90,6 +92,7 @@ export class Game {
   }
   onDeath(src, target) {
     const v = this.vfx, tc = TEAM_COL[target.team];
+    if (target.isTower) { for (const h of this.heroes) if (h.team !== target.team) { h.gainGold(target.isCore ? 0 : 260, h === this.hero ? target.pos : null); h.gainXp(180); } return; }
     if (target.isUnit) {
       v.sparks({ x: target.pos.x, y: 1.2, z: target.pos.z }, 16, { color: tc, speed: 8, up: 6, life: 0.6 }); v.ring(target.pos, { r1: 2.2, color: tc, dur: 0.3, k: 1.6 });
       const rw = REWARD[target.kind]; if (!rw) return;
@@ -112,18 +115,19 @@ export class Game {
     if (c.reward === 'convert') this.after(0.9, () => this.convert(c, team));
     else if (c.reward && hero) { hero.addBuff(c.reward); this.say(`${hero.kit.name} absorveu ${BUFFS[c.reward].name}`, team); }
   }
+  stun(target, dur) { if (target.isTower || !target.alive) return; target.stunUntil = this.t + dur; this.vfx.sparks({ x: target.pos.x, y: 2.6, z: target.pos.z }, 10, { color: new THREE.Color(0xffe36a), speed: 3, up: 2, life: dur, size: 0.45, grav: 0.5 }); if (target === this.hero) this.vfx.number(target.pos, 'ATORDOADO', 'hurt'); }
   mark(target, dur) { if (!target.isTower) target.markUntil = this.t + dur; }
   slow(target, k, dur) { if (target.isTower) return; target.slowK = k; target.slowUntil = this.t + dur; }
 
   // homing bolt (basic attacks, towers)
-  shoot(src, target, dmg, { from = null, speed = 20, size = 1, heavy = false, crit = false } = {}) {
-    const m = this.shotPool.find((x) => !x.visible) || this.shotPool[0]; m.visible = true; m.scale.setScalar(size);
+  shoot(src, target, dmg, { from = null, speed = 20, size = 1, heavy = false, crit = false, arrow = false } = {}) {
+    const m = this.shotPool.find((x) => !x.visible) || this.shotPool[0]; m.visible = true; if (arrow) m.scale.set(size * 0.4, size * 0.4, size * 2.2); else m.scale.setScalar(size);
     m.material.color.copy(TEAM_COL[src.team] || C_WHITE).multiplyScalar(3); if (from) m.position.copy(from); else m.position.set(src.pos.x, src.K?.fly ? (src.K.hover || 2.4) : 1.9, src.pos.z);
     this.shots.push({ m, src, target, dmg, speed, heavy, crit });
   }
   // straight skill-shot: hits everything it crosses once (or stops at the first if !pierce)
-  lineShot(src, { dir, range, speed = 30, width = 1.2, dmg, pierce = true, size = 1.8, onHit = null, from = null, y = 1.5 }) {
-    const m = this.shotPool.find((x) => !x.visible) || this.shotPool[0]; m.visible = true; m.scale.setScalar(size); m.material.color.copy(TEAM_COL[src.team]).multiplyScalar(3.4);
+  lineShot(src, { dir, range, speed = 30, width = 1.2, dmg, pierce = true, size = 1.8, onHit = null, from = null, y = 1.5, arrow = false }) {
+    const m = this.shotPool.find((x) => !x.visible) || this.shotPool[0]; m.visible = true; if (arrow) m.scale.set(size * 0.4, size * 0.4, size * 2.4); else m.scale.setScalar(size); m.material.color.copy(TEAM_COL[src.team]).multiplyScalar(3.4);
     const p = from ? from.clone() : src.pos.clone(); m.position.set(p.x, y, p.z); m.lookAt(p.x + dir.x, y, p.z + dir.z);
     this.lines.push({ m, src, dir: dir.clone(), left: range, speed, width, dmg, pierce, onHit, hit: new Set(), start: p.clone() });
   }
@@ -158,6 +162,7 @@ export class Game {
       [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z, { laneZ: z, boost }));
       [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z, { laneZ: z, boost }));
       if (team === 'ekoo' && n >= 3 && n % 2 === 1) this.spawn(melee, team, x0 + s * 1.5, 0, { laneZ: 0, boost });      // EKOO slowly out-scales the lane
+      if (n % 3 === 0) this.spawn(team === 'axiom' ? 'cerco' : 'moto', team, x0 + s * 6, 0, { laneZ: 0, boost });       // siege unit every third wave
     }
   }
   convert(c, team) {                                  // cleared rift -> its Vessari are pulled into the lane on that team's side
@@ -167,6 +172,13 @@ export class Game {
     [-1.6, 0, 1.6].forEach((dz, i) => this.spawn('eco', team, to.x - s * i * 1.4, to.z * 0.4 + dz, { laneZ: dz, look: team, boost: 1.1 + this.wave * 0.03 }));
     this.say(team === 'axiom' ? 'VESSARI CONVERTIDOS — reforço AXIOM na lane' : 'EKOO DOMINOU UMA FENDA — Vessari na lane inimiga', team);
   }
+  // EVENTO 3h17: the signal cuts in. A rift tears open at mid lane and hostile Vessari pour out, attacking both sides.
+  event317() {
+    const v = this.vfx, c = { x: 0, z: 0 }; this.eventUntil = this.t + 30; this.say('⚠ EVENTO 3h17 ATIVO — SEM SINAL', 'event');
+    v.ring(c, { r0: 1, r1: 16, color: C_VIOLET, dur: 1.2, k: 4 }); v.disc(c, { r: 9, color: C_VIOLET, dur: 1.4, k: 2.4 }); v.sparks({ x: 0, y: 1, z: 0 }, 70, { color: C_VIOLET, speed: 14, up: 12, life: 1.2 }); v.flash(c, C_VIOLET, 260); v.shake(0.9);
+    const n = 3 + Math.min(3, Math.floor(this.t / 197 - 1) + 1);
+    for (let i = 0; i < n; i++) this.after(0.4 + i * 0.35, () => { const a = i * 2.1, p = { x: Math.cos(a) * 2.5, z: Math.sin(a) * 3 }; v.ring(p, { r1: 3, color: C_VIOLET, dur: 0.4, k: 3 }); const u = this.spawn(i === 0 && this.t > 300 ? 'anciao' : 'eco', 'vessari', p.x, p.z, { lane: false, boost: 0.9 + this.wave * 0.04 }); u.event = true; });
+  }
   finish(result) {
     if (this.over) return; this.over = result;
     this.after(0.8, () => this.hud?.end(result, { time: this.t, score: this.score, camps: this.campScore, heroes: this.heroes.map((h) => ({ name: h.kit.name, team: h.team, me: h === this.hero, level: h.level, ...h.stat })) }));
@@ -175,7 +187,7 @@ export class Game {
   update(dt) {
     this.t += dt;
     for (let i = this.timers.length - 1; i >= 0; i--) if (this.t >= this.timers[i].t) this.timers.splice(i, 1)[0].fn();
-    if (!this.over) { if (this.t >= this.nextWave) { this.nextWave += WAVE_EVERY; this.spawnWave(); } for (const c of this.camps) c.update(this); }
+    if (!this.over) { if (this.t >= this.nextWave) { this.nextWave += WAVE_EVERY; this.spawnWave(); } for (const c of this.camps) c.update(this); if (this.t >= this.nextEvent) { this.nextEvent += 197; this.event317(); } }
     // brush stealth: a hero in a corn patch is hidden from a team with nobody in that patch or within 3.5 of it
     for (const h of this.heroes) {
       const zi = h.alive ? inBrush(h.pos.x, h.pos.z) : -1; h.brush = zi;

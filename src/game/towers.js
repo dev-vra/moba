@@ -88,6 +88,7 @@ export class Tower {
   update(dt, g) {
     const f = this.fx, t = g.t;
     if (!this.alive) { const k = Math.min(1, (this.deadT += dt) / 1.6); this.g.rotation.z = k * 0.45 * (this.team === 'axiom' ? 1 : -1); this.g.rotation.x = k * 0.2; this.g.position.y = -k * k * 3.2; return; }
+    if (this.hp < this.maxHp * 0.5 && Math.random() < dt * (this.hp < this.maxHp * 0.25 ? 9 : 4)) g.vfx.sparks({ x: this.pos.x + (Math.random() - 0.5) * 2, y: 2 + Math.random() * 5, z: this.pos.z + (Math.random() - 0.5) * 2 }, 5, { color: this.color, speed: 5, up: 4, life: 0.5 });   // failing structure
     f.core.rotation.y = t * 1.6; f.core.position.y = f.muzzle + Math.sin(t * 2) * 0.18; f.core.scale.setScalar(1 + Math.min(0.5, Math.max(0, 0.5 - this.cd)) * 0.7); if (f.ring) { f.ring.rotation.x = PI / 2 + Math.sin(t * 0.9) * 0.4; f.ring.rotation.y = t * 0.7; f.ring.position.y = f.core.position.y; }
     this.bar.set(this.pos, this.isCore ? 10.5 : 11.5, this.hp / this.maxHp);
     if (this.bubble) { const up = g.guarded(this); this.bubble.visible = up; this.bubble.scale.setScalar(1 + Math.sin(t * 2.4) * 0.02); this.bubble.rotation.y = t * 0.3; }

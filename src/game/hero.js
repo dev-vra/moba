@@ -59,6 +59,7 @@ export class Hero {
   levelSkill(k) { if (!this.canLevel(k)) return false; this.ranks[k]++; this.points--; if (this.isPlayer) this.vfx.ring(this.pos, { r1: 2.4, dur: 0.3, k: 2.4 }); return true; }
   canBuy(it) { return this.items.includes(it) ? 'owned' : this.items.length >= SLOTS ? 'full' : this.gold < it.cost ? 'gold' : !(this.atBase || !this.alive) ? 'base' : null; }
   buy(it) { if (this.canBuy(it)) return false; this.gold -= it.cost; this.items.push(it); this.recalc(); if (this.alive) this.vfx.ring(this.pos, { r1: 3, dur: 0.4, k: 2.4, color: this.color }); return true; }
+  sell(it) { const i = this.items.indexOf(it); if (i < 0 || !(this.atBase || !this.alive)) return false; this.items.splice(i, 1); this.gold += Math.round(it.cost * 0.6); this.recalc(); return true; }
   addBuff(kind) { this.buffs[kind] = this.t + BUFFS[kind].dur; this.recalc(); this.vfx.ring(this.pos, { r1: 5, dur: 0.7, k: 3, color: new THREE.Color(BUFFS[kind].color) }); }
 
   // ---------------- skills ----------------
@@ -77,7 +78,7 @@ export class Hero {
 
   // ---------------- orders ----------------
   moveTo(x, z) { this.target = null; this.path = findPath(this.pos, { x, z }); this.cancelRecall(); }
-  stop() { this.path = []; this.target = null; }
+  stop() { this.path = []; this.target = null; this.amove = null; }
   startRecall() { if (!this.alive || this.busy || this.atBase) return; this.stop(); this.recall = { t: 0, dur: 3.6 }; }
   cancelRecall() { if (this.recall) { this.recall = null; if (this.isPlayer) this.vfx.number(this.pos, 'Retorno interrompido', 'info'); } }
   // enemy to basic-attack: the one under the cursor, else the closest one in the cursor's direction, else the closest
@@ -112,12 +113,17 @@ export class Hero {
       if (this.isPlayer) this.rig.goal.set(this.pos.x, 0, this.pos.z); return;
     }
     c.think?.(this, g, dt);
+    if (g.t < (this.stunUntil || 0)) { this.lock = Math.max(this.lock, 0.1); this.path = []; }      // stunned: no orders, no movement
     for (let i = this.timers.length - 1; i >= 0; i--) if (this.t >= this.timers[i].t) this.timers.splice(i, 1)[0].fn();
     for (const m of c.cmds.splice(0)) {
-      if (m.t === 'level') this.levelSkill(m.k); else if (m.t === 'buy') this.buy(m.item); else if (this.busy) continue;
-      else if (m.t === 'move') this.moveTo(m.x, m.z); else if (m.t === 'attack') { this.target = m.target; this.cancelRecall(); } else if (m.t === 'stop') this.stop();
+      if (m.t === 'level') this.levelSkill(m.k); else if (m.t === 'buy') this.buy(m.item); else if (m.t === 'sell') this.sell(m.item);
+      else if (m.t === 'cast' && (this.busy || this.lock > 0.05)) this.queued = { k: m.k, point: m.point, until: this.t + 0.7 };      // buffer: fires as soon as the hero is free
+      else if (this.busy) continue;
+      else if (m.t === 'move') { this.amove = null; this.moveTo(m.x, m.z); } else if (m.t === 'amove') { this.moveTo(m.x, m.z); this.amove = { x: m.x, z: m.z }; }
+      else if (m.t === 'attack') { this.amove = null; this.target = m.target; this.cancelRecall(); } else if (m.t === 'stop') this.stop();
       else if (m.t === 'cast') this.cast(m.k, m.point); else if (m.t === 'recall') this.startRecall();
     }
+    if (this.queued && !this.busy && this.lock <= 0.05) { const qd = this.queued; this.queued = null; if (this.t <= qd.until) this.cast(qd.k, qd.point); }
     // buffs / regen
     if ((this.buffs.power && this.buffs.power <= this.t) || (this.buffs.signal && this.buffs.signal <= this.t)) { if (this.buffs.power <= this.t) this.buffs.power = 0; if (this.buffs.signal <= this.t) this.buffs.signal = 0; this.recalc(); }
     const base = this.atBase, calm = g.t - this.combatAt > 5;
@@ -133,6 +139,11 @@ export class Hero {
     // ---- basic attacks ----
     if (c.attackHeld && !this.busy) { const tg = this.pickTarget(); if (tg) { this.target = tg; this.holdAttack = true; } else if (this.kit.base.melee && this.lock <= 0 && this.atkT <= 0 && c.aim) { _a.set(c.aim.x - this.pos.x, 0, c.aim.z - this.pos.z).normalize(); this.face(_a); this.path = []; this.kit.basic(this, null, _a.clone()); } }
     else if (this.holdAttack) { this.holdAttack = false; if (!c.keepTarget) this.target = null; }
+    // attack-move: fight whatever comes into reach, then carry on to the destination
+    if (this.amove && !this.busy && !this.target) {
+      const e = g.nearest(this.team, this.pos, this.range + 3.5, (e) => !g.guarded(e) && (e.lane !== false || e.aggro));
+      if (e) this.target = e; else if (!this.path.length) { if (Math.hypot(this.amove.x - this.pos.x, this.amove.z - this.pos.z) > 1.2) this.path = findPath(this.pos, this.amove); else this.amove = null; }
+    }
     let tg = this.target; if (tg && (!tg.alive || tg.targetable === false)) tg = this.target = null;
     if (tg && !this.busy) {
       _a.subVectors(tg.pos, this.pos).setY(0); const d = _a.length() - tg.radius; _a.normalize();

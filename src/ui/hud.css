@@ -151,3 +151,8 @@ kbd{font:700 calc(11*var(--u))/1 var(--f);background:#0b1016;border:1px solid #4
 #pick button span{font:600 13px/1.2 var(--f);color:#9fb2c2}#pick button p{margin:10px 0;font-size:13px;color:#c4d2dc}#pick ul{list-style:none;margin:0;padding:0;font:600 12px/1.9 var(--f);color:#b9c6d2}#pick kbd{font-size:11px;margin-right:6px}
 
 #buffs .hide{border-color:#9ab83a;color:#d8ec8a}
+
+#feed .event{border-color:#a55cff;color:#e2ccff;font-size:calc(19*var(--u));padding:calc(9*var(--u)) calc(22*var(--u));background:rgba(26,10,44,.9);box-shadow:0 0 22px rgba(138,76,240,.6);letter-spacing:.12em}
+#buffs .event{border-color:#a55cff;color:#e2ccff;animation:rdy 1s infinite}
+#pick .diff{margin-top:18px;display:flex;gap:8px;justify-content:center;align-items:center;font:700 12px/1 var(--f);letter-spacing:.14em;color:#8aa0b2}
+#pick .diff i{font-style:normal;padding:8px 14px;border:1px solid #4b5560;border-radius:5px;cursor:pointer;color:#c4d2dc}#pick .diff i.on{border-color:#35dcff;color:#8ff0ff;background:#0e2a36}

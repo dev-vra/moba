@@ -45,13 +45,16 @@ const game = new Game(scene, vfx, hud); input.game = game; game.playerTeam = 'ax
 game.start();                                         // towers + jungle camps; waves start a few seconds in
 let hero = null; rig.snap(-52, 0);
 
-const clock = new THREE.Clock(), speed = parseFloat(q.get('speed') || '1'); let t = 0, frames = 0, running = false;   // ?speed=N: dev fast-forward
+const clock = new THREE.Clock(), speed = parseFloat(q.get('speed') || '1'), STEP = 1 / 60, fog0 = scene.fog.color.clone(), VIOLET = new THREE.Color(0x3a2060); let t = 0, frames = 0, running = false, acc = 0;   // ?speed=N: dev fast-forward
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); t += dt; renderer.info.reset();
   window.__bot?.();
-  if (running) for (let k = 0; k < speed; k++) {
-    const gdt = (vfx.hitstop > 0 ? dt * 0.06 : dt) * (game.over ? 0.35 : 1); vfx.hitstop -= dt;      // hit-stop on heavy impacts, slow-mo on match end
-    game.update(gdt); vfx.update(dt);
+  if (running) {                                   // fixed 60 Hz simulation step: same result at any frame rate (needed for online play later)
+    acc = Math.min(acc + dt * speed, 0.25 * speed);
+    while (acc >= STEP) { acc -= STEP; const k = (vfx.hitstop > 0 ? 0.06 : 1) * (game.over ? 0.35 : 1); vfx.hitstop -= STEP; game.update(STEP * k); vfx.update(STEP); }   // hit-stop on heavy impacts, slow-mo on match end
+    input.tick(dt); rig.goal.set(hero.pos.x, 0, hero.pos.z).addScaledVector(rig.right, input.pan.x).addScaledVector(rig.fwd, input.pan.y);
+    const ev = THREE.MathUtils.clamp(Math.min(game.eventUntil - game.t, 30 - (game.eventUntil - game.t)) / 2, 0, 1) * (game.eventUntil > game.t ? 1 : 0);   // 3h17: the world goes violet
+    scene.fog.color.lerpColors(fog0, VIOLET, ev * 0.55); scene.background.copy(scene.fog.color); scene.environmentIntensity = 0.45 - ev * 0.2;
   }
   rig.update(dt);
   world.update(t, dt, rig.target, rig.dist, rig.camera, hero && hero.alive ? inBrush(hero.pos.x, hero.pos.z) : -1); if (hero) hud.update(hero, game.t, game, rig, dt);
@@ -62,8 +65,9 @@ renderer.setAnimationLoop(() => {
 // ---- hero select, then 2v2: you + the other AXIOM hero (bot) vs DESPLUGADA + VÁLVULA (bots) ----
 const pick = PLAYABLE.includes(q.get('hero')) ? q.get('hero') : await hud.pickHero(PLAYABLE.map((k) => KITS[k]));
 const mate = PLAYABLE.find((k) => k !== pick);
+const DIFF = { easy: { power: 1.0, skill: 0.6 }, normal: { power: 1.22, skill: 1 }, hard: { power: 1.45, skill: 1.4 } }[q.get('diff') || hud.diff || 'normal'];
 hero = await Hero.create(game, scene, rig, vfx, KITS[pick], 'axiom', input, true, 0);
 await Hero.create(game, scene, rig, vfx, KITS[mate], 'axiom', new Bot(0.9), false, 1);
-for (const [i, k] of ['desplugada', 'valvula'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = 1.22; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
+for (const [i, k] of ['desplugada', 'valvula'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = DIFF.power; e.ctrl.skill = DIFF.skill; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
 game.hero = hero; input.hero = hero; hud.setHero(hero); rig.snap(hero.pos.x, hero.pos.z); running = true;
 window.__g = { game, hero, input, vfx, rig, renderer, scene, hud }; window.__ready = true;         // dev / automated tests

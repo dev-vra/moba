@@ -7,9 +7,9 @@ import { C_WHITE } from '../vfx.js';
 import { VETOR } from './vetor.js';
 
 const R3 = (a, r) => a[r - 1], _a = new THREE.Vector3();
-function rangedBasic(h, tg, { wind = 0.2, time = 0.85, speed = 30, size = 1.3 } = {}) {
+function rangedBasic(h, tg, { wind = 0.2, time = 0.85, speed = 30, size = 1.3, arrow = false } = {}) {
   const sp = 1 - h.haste * 0.4; h.lock = wind + 0.04; h.atkT = time * sp; h.body.play('attack', wind);
-  const crit = Math.random() < h.crit; h.after(wind, () => { if (tg.alive) h.game.shoot(h, tg, h.atk, { speed, size, crit }); });
+  const crit = Math.random() < h.crit; h.after(wind, () => { if (tg.alive) h.game.shoot(h, tg, h.atk, { speed, size, crit, arrow }); });
 }
 // short forced move (hops, knockbacks)
 function hop(h, to, dur = 0.22) { h.busy = true; const from = h.pos.clone(); let t = 0; h.hopFn = (dt) => { t += dt; const p = Math.min(1, t / dur); h.pos.lerpVectors(from, to, 1 - (1 - p) ** 2); if (p >= 1) { h.busy = false; h.hopFn = null; } }; }
@@ -35,9 +35,9 @@ const ENXAME = {
     if ((h.zapT -= dt) <= 0) { const e = g.nearest(h.team, h.pos, 7.5); h.zapT = e ? 2.4 : 0.4; if (e) { const d = h.drones[(Math.random() * 3) | 0]; g.shoot(h, e, h.atk * 0.32 + h.level * 4, { from: d.position.clone(), speed: 34, size: 0.8 }); } }
   },
   skills: {
-    q: { name: 'RAJADA DE ENXAME', desc: 'Lança uma formação de drones em linha reta que atravessa e fere todos os inimigos.', type: 'dir', ai: 'nuke', range: 13, width: 1.7, cd: [6.5, 5.8, 5], cost: 22,
+    q: { name: 'RAJADA DE ENXAME', desc: 'Lança uma formação de drones em linha reta que atravessa e fere todos os inimigos; o primeiro atingido fica atordoado por 0,6s.', type: 'dir', ai: 'nuke', range: 13, width: 1.7, cd: [6.5, 5.8, 5], cost: 22,
       cast(h, a, r) { h.body.play('cast', 0.2); h.lock = 0.2; const y = Math.atan2(a.dir.x, a.dir.z); h.vfx.slash(h.pos, y, { r: 2.6, dur: 0.2, k: 2.6 });
-        h.game.lineShot(h, { dir: a.dir, range: 13, speed: 30, width: 1.7, size: 2.8, dmg: h.atk * R3([1.6, 2.0, 2.4], r) });
+        let first = true; h.game.lineShot(h, { dir: a.dir, range: 13, speed: 30, width: 1.7, size: 2.8, dmg: h.atk * R3([1.6, 2.0, 2.4], r), onHit: (e) => { if (first) { first = false; h.game.stun(e, 0.6); } } });
         for (const s of [-1, 1]) h.game.lineShot(h, { dir: a.dir, range: 13, speed: 30, width: 0.1, size: 1.5, dmg: 0, from: h.pos.clone().add(_a.set(Math.cos(y) * s * 1.1, 0, -Math.sin(y) * s * 1.1)) }); } },
     w: { name: 'MALHA DE VIGILÂNCIA', desc: 'Projeta um campo de sensores por 4s: fere e deixa lentos os inimigos dentro dele.', type: 'point', ai: 'aoe', range: 10, radius: 4.6, cd: [11, 10, 9], cost: 28,
       cast(h, a, r) { h.body.play('cast', 0.25); h.lock = 0.2; const g = h.game, d = h.atk * R3([0.34, 0.44, 0.54], r); g.zone(h, { pos: a.point, r: 4.6, dur: 4, tick: 0.5, fn: (e) => { g.damage(h, e, d); g.slow(e, 0.6, 0.8); } }); h.vfx.ring(a.point, { r0: 0.5, r1: 4.6, dur: 0.3, k: 3 }); } },
@@ -64,18 +64,18 @@ const DESPLUGADA = {
   base: { hp: 2100, atk: 98, speed: 7.0, range: 9.5, hpLvl: 140, atkLvl: 8 },
   build() { return new Puppet('desplugada', 'ekoo', 'bow'); },
   update(h, dt) { h.hopFn?.(dt); },
-  basic(h, tg) { rangedBasic(h, tg, { wind: 0.24, time: 0.8, speed: 36 }); },
+  basic(h, tg) { rangedBasic(h, tg, { wind: 0.24, time: 0.8, speed: 38, size: 1.6, arrow: true }); },
   skills: {
     q: { name: 'FLECHA DE COBRE', desc: 'Flecha perfurante em linha reta.', type: 'dir', ai: 'nuke', range: 14, width: 1.1, cd: [6, 5.5, 5], cost: 20,
-      cast(h, a, r) { h.body.play('attack', 0.2); h.lock = 0.22; h.after(0.15, () => h.game.lineShot(h, { dir: a.dir, range: 14, speed: 38, width: 1.1, size: 2.2, dmg: h.atk * R3([1.5, 1.85, 2.2], r) })); } },
+      cast(h, a, r) { h.body.play('attack', 0.2); h.lock = 0.22; h.after(0.15, () => h.game.lineShot(h, { dir: a.dir, range: 14, speed: 40, width: 1.1, size: 2.4, arrow: true, dmg: h.atk * R3([1.5, 1.85, 2.2], r) })); } },
     w: { name: 'CHUVA DE SUCATA', desc: 'Dispara para o alto: estilhaços caem na área após um instante, ferindo e causando lentidão.', type: 'point', ai: 'aoe', range: 10, radius: 4, cd: [11, 10, 9], cost: 28,
       cast(h, a, r) { h.body.play('cast', 0.3); h.lock = 0.25; const g = h.game, v = h.vfx, c = a.point.clone(); v.ring(c, { r0: 4, r1: 3.9, dur: 0.75, k: 2.4, color: h.color });
         h.after(0.75, () => { v.disc(c, { r: 4, dur: 0.35, k: 2.4, color: h.color }); v.sparks({ x: c.x, y: 0.5, z: c.z }, 30, { color: h.color, speed: 10, up: 7 }); for (const e of g.inRadius(h.team, c, 4)) { g.damage(h, e, h.atk * R3([1.1, 1.4, 1.7], r)); g.slow(e, 0.6, 1.5); } }); } },
     e: { name: 'SALTO TÁTICO', desc: 'Salta para trás, afastando-se do perigo.', type: 'dir', ai: 'escape', range: 6.5, cd: [12, 11, 10], cost: 18,
       cast(h, a) { const to = clampWalk(h.pos.clone().addScaledVector(a.dir, 6.5)); h.vfx.streak(h.pos, to, { color: h.color, width: 1.2, dur: 0.3 }); hop(h, to); h.slowUntil = 0; } },
-    r: { name: 'FLECHA SEM SINAL', desc: 'Flecha pesada de longo alcance: para no primeiro inimigo, causando dano massivo e lentidão.', type: 'dir', ai: 'ult', range: 24, width: 1.4, cd: [55, 48, 42], cost: 50,
+    r: { name: 'FLECHA SEM SINAL', desc: 'Flecha pesada de longo alcance: para no primeiro inimigo, causando dano massivo, atordoando por 0,9s e deixando lento.', type: 'dir', ai: 'ult', range: 24, width: 1.4, cd: [55, 48, 42], cost: 50,
       cast(h, a, r) { h.body.play('attack', 0.45); h.lock = 0.5; h.vfx.ring(h.pos, { r0: 3, r1: 1, dur: 0.45, color: h.color, k: 3 });
-        h.after(0.45, () => h.game.lineShot(h, { dir: a.dir, range: 24, speed: 46, width: 1.4, size: 3.4, pierce: false, dmg: h.atk * R3([2.6, 3.3, 4.0], r), onHit: (e) => { h.game.slow(e, 0.45, 2); h.vfx.ring(e.pos, { r1: 4, dur: 0.4, color: h.color, k: 3.4 }); } })); } },
+        h.after(0.45, () => h.game.lineShot(h, { dir: a.dir, range: 24, speed: 46, width: 1.4, size: 3.6, arrow: true, pierce: false, dmg: h.atk * R3([2.6, 3.3, 4.0], r), onHit: (e) => { h.game.stun(e, 0.9); h.game.slow(e, 0.45, 2.5); h.vfx.ring(e.pos, { r1: 4, dur: 0.4, color: h.color, k: 3.4 }); } })); } },
   },
 };
 
@@ -97,7 +97,7 @@ const VALVULA = {
       cast(h, a, r) { h.body.play('cast', 0.25); const amt = R3([150, 220, 290], r) + h.atk * 0.8; h.vfx.ring(h.pos, { r0: 1, r1: 8, dur: 0.5, color: new THREE.Color(0x7dffa0), k: 2.4 });
         for (const e of h.game.allies(h.team)) if (e.pos.distanceTo(h.pos) < 8) { e.hp = Math.min(e.maxHp, e.hp + (e.isHero ? amt : amt * 0.5)); if (e.isHero) e.energy = Math.min(100, e.energy + 12); h.vfx.sparks({ x: e.pos.x, y: 1, z: e.pos.z }, 6, { color: new THREE.Color(0x7dffa0), speed: 2, up: 6, grav: 3, life: 0.6 }); } } },
     e: { name: 'INTERFERÊNCIA', desc: 'Zona de ruído por 3s: lentidão forte e dano leve.', type: 'point', ai: 'aoe', range: 9, radius: 4.2, cd: [13, 12, 11], cost: 26,
-      cast(h, a, r) { h.body.play('cast', 0.25); h.lock = 0.2; const g = h.game, d = h.atk * R3([0.3, 0.38, 0.46], r); g.zone(h, { pos: a.point, r: 4.2, dur: 3, tick: 0.5, fn: (e) => { g.damage(h, e, d); g.slow(e, 0.5, 0.8); } }); } },
+      cast(h, a, r) { h.body.play('cast', 0.25); h.lock = 0.2; const g = h.game, d = h.atk * R3([0.3, 0.38, 0.46], r); g.zone(h, { pos: a.point, r: 4.2, dur: 3, tick: 0.5, fn: (e) => { g.damage(h, e, d); g.slow(e, 0.5, 0.8); } }); for (const e of g.inRadius(h.team, a.point, 4.2)) g.stun(e, 0.5); } },
     r: { name: 'CORO DAS 3H17', desc: 'Transmite o Coro por 5s: aliados em volta regeneram vida continuamente.', type: 'self', ai: 'healult', keepMoving: true, keepTarget: true, radius: 9, cd: [70, 60, 50], cost: 50,
       cast(h, a, r) { h.body.play('cast', 0.5); h.choir = { until: h.t + 5, next: 0, pct: R3([0.03, 0.04, 0.05], r) }; h.vfx.ring(h.pos, { r0: 1, r1: 9, dur: 0.6, color: C_WHITE, k: 3 }); } },
   },

@@ -58,7 +58,7 @@ function execute(h, tg) {
   v.streak(from, h.pos, { width: 1.8, dur: 0.35, k: 3 }); v.ring(from, { r1: 2, dur: 0.25 });
   h.body.clip(ATK[2].clip, { ...ATK[2], dur: 0.34 }); h.lock = 0.3; h.atkT = 0.4; h.body.trailK = 1.4; endGhost(h);
   v.slash(h.pos, h.yaw, { r: 4, dur: 0.26, k: 4.2, tilt: 0.5 }); v.slash(h.pos, h.yaw, { r: 4, dur: 0.26, k: 4.2, tilt: -0.5, dir: -1 });
-  g.damage(h, tg, h.atk * 1.7, { crit: true }); if (h.isPlayer) v.number(tg.pos, 'EXECUÇÃO', 'info');
+  g.damage(h, tg, h.atk * 1.7, { crit: true }); g.stun(tg, 0.6); if (h.isPlayer) v.number(tg.pos, 'EXECUÇÃO', 'info');
   for (const e of g.inRadius(h.team, tg.pos, 2.6)) if (e !== tg) g.damage(h, e, h.atk * 0.8);
 }
 
@@ -117,7 +117,7 @@ export const VETOR = {
         h.after(0.1, () => { const y = Math.atan2(a.dir.x, a.dir.z); for (const s of [-0.1, 0.1]) h.game.lineShot(h, { dir: new THREE.Vector3(Math.sin(y + s), 0, Math.cos(y + s)), range: 13, speed: 34, width: 0.95, size: 2.2, dmg: h.atk * R3([1.0, 1.25, 1.5], r), onHit: (e) => { h.game.mark(e, 4); h.game.slow(e, 0.65, 1.5); } });
           h.vfx.slash(h.pos, h.yaw, { r: 2.6, dur: 0.16, k: 2.6 }); h.V?.blades; h.body.V.blades.forEach((b) => { b.visible = false; }); h.after(0.5, () => h.body.V.blades.forEach((b) => { b.visible = true; })); });
       } },
-    e: { name: 'MODO FANTASMA', desc: 'Camuflagem e +45% velocidade por 3s. O próximo básico teleporta às costas do alvo com crítico garantido.', type: 'self', ai: 'self', keepMoving: true, keepTarget: true, cd: [14, 13, 12], cost: 30,
+    e: { name: 'MODO FANTASMA', desc: 'Camuflagem e +45% velocidade por 3s. O próximo básico teleporta às costas do alvo com crítico garantido e atordoa por 0,6s.', type: 'self', ai: 'self', keepMoving: true, keepTarget: true, cd: [14, 13, 12], cost: 30,
       cast(h) { h.ghostUntil = h.t + 3; h.ghostOn = true; h.skills.e.lit = true; h.body.setGhost(true); h.targetable = false; h.hasteMul = 1.45; h.vfx.ring(h.pos, { r1: 3, dur: 0.4, k: 2.6 }); if (h.isPlayer) h.vfx.number(h.pos, 'MODO FANTASMA', 'info'); } },
     r: { name: 'PROTOCOLO: ERRADICAÇÃO', desc: 'Fica inalvejável e desfere 6 cortes relâmpago na área, finalizando com uma onda de choque.', type: 'point', ai: 'ult', range: 9, radius: 6.5, cd: [48, 42, 36], cost: 50,
       cast(h, a, r) { endGhost(h); const S = h.skills.r; h.ult = { c: a.point.clone(), i: 0, next: 0.12, mul: R3([1, 1.3, 1.6], r) }; h.busy = true; h.targetable = false; h.body.trailK = 2;
