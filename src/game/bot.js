@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { ITEMS } from './items.js';
 import { CAMPS, TOWER_X, laneZ } from '../core/util.js';
-const LANE_ORDER = { axiom: ['top', 'bot', 'mid'], ekoo: ['mid', 'top', 'bot'] };
+const LANE_BY_SLOT = ['mid', 'top', 'bot'];   // simétrico nos dois times (slot 0 = jogador humano / mid)
 
 const pct = (e) => e.hp / e.maxHp, d2 = (a, b) => Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z);
 
@@ -12,7 +12,7 @@ export class Bot {
     for (const k of ['r', 'q', 'w', 'e']) if (h.canLevel(k)) { this.cmds.push({ t: 'level', k }); break; }
     if ((this.shopT -= dt) <= 0) { this.shopT = 1; if (h.atBase) { const it = ITEMS.filter((i) => !h.canBuy(i)).sort((a, b) => b.cost - a.cost)[0]; if (it) this.cmds.push({ t: 'buy', item: it }); } }
     if ((this.tick -= dt) > 0 || h.busy) return; this.tick = 0.25;
-    if (!this.lane) { const mates = g.heroes.filter((e) => e.team === h.team && e.ctrl?.think); this.lane = LANE_ORDER[h.team][Math.max(0, mates.indexOf(h)) % 3]; }
+    if (!this.lane) this.lane = LANE_BY_SLOT[(h.slot ?? 0) % 3];
     const LZ = laneZ(this.lane);
     const s = h.team === 'axiom' ? -1 : 1, P = h.pos, foes = g.heroes.filter((e) => e.alive && e.team !== h.team && e.targetable !== false), foe = foes.sort((a, b) => d2(a, h) - d2(b, h))[0];
     const foeD = foe ? d2(foe, h) : 99, eTower = g.front(h.team === 'axiom' ? 'ekoo' : 'axiom', this.lane), myTower = g.front(h.team, this.lane);

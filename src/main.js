@@ -78,7 +78,9 @@ const pick = choice?.hero ?? (PLAYABLE.includes(q.get('hero')) ? q.get('hero') :
 const mate = PLAYABLE.find((k) => k !== pick);
 const DIFF = { easy: { power: 1.0, skill: 0.6 }, normal: { power: 1.22, skill: 1 }, hard: { power: 1.45, skill: 1.4 } }[q.get('diff') || choice?.diff || hud.diff || 'normal'];
 hero = await Hero.create(game, scene, rig, vfx, KITS[pick], 'axiom', input, true, 0);
-for (const [i, k] of PLAYABLE.filter((k) => k !== pick).entries()) await Hero.create(game, scene, rig, vfx, KITS[k], 'axiom', new Bot(0.9), false, i + 1);   // 3v3
-for (const [i, k] of ['ferrovelho', 'desplugada', 'valvula'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = DIFF.power; e.ctrl.skill = DIFF.skill; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
+for (const [i, k] of PLAYABLE.filter((k) => k !== pick).entries()) await Hero.create(game, scene, rig, vfx, KITS[k], 'axiom', new Bot(1), false, i + 1);   // 3v3
+for (const [i, k] of ['desplugada', 'ferrovelho', 'valvula'].entries()) await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i);
+// dificuldade = força dos BOTS, igual nos dois times (partida simétrica; humanos jogam com poder 1)
+for (const h of game.heroes) if (!h.isPlayer) { h.power = DIFF.power; h.ctrl.skill = DIFF.skill; h.recalc(); h.hp = h.maxHp; }
 game.hero = hero; input.hero = hero; hud.setHero(hero); rig.snap(hero.pos.x, hero.pos.z); running = true;
 window.__g = { game, hero, input, vfx, rig, renderer, scene, hud }; window.__ready = true;         // dev / automated tests

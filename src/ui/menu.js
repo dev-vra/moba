@@ -46,8 +46,8 @@ export function showMenu({ kits, playable, foes }) {
   const logo = [...LETTERS].map((c, i) => `<span class="${i < 4 ? 'ax' : ''}" style="animation-delay:${0.1 + i * 0.09}s">${c}</span>`).join('');
   el.innerHTML = `
     <div class="bg"><i class="ax"></i><i class="ek"></i></div><div class="seam"></div><div class="sparks">${sparks()}</div><div class="vig"></div><div class="scan"></div>
-    <div class="title"><div class="waves"><s></s><s></s><s></s></div>
-      <div class="logo">${logo}</div><div class="arena">ARENA</div><div class="tag">CIDADE-CELEIRO · 2049 · O SINAL DAS 3H17</div>
+    <div class="title"><div class="key"><i class="shine"></i></div><div class="waves"><s></s><s></s><s></s></div>
+      <div class="tag">CIDADE-CELEIRO · 2049 · O SINAL DAS 3H17</div>
       <div class="actions"><button class="btn hot" data-a="play">JOGAR</button><button class="btn sm" data-a="how">CONTROLES</button></div>
       <div class="tag how" style="display:none;margin-top:14px;letter-spacing:.18em;text-align:center;line-height:1.7">CLIQUE DIREITO: MOVER / ATACAR · QWER: HABILIDADES · 1-4: SUBIR NÍVEL · B: VOLTAR À BASE · C: LOJA</div>
     </div>
@@ -58,7 +58,6 @@ export function showMenu({ kits, playable, foes }) {
         <div class="diff"><span>IA</span>${[['easy', 'FÁCIL'], ['normal', 'NORMAL'], ['hard', 'DIFÍCIL']].map(([k, l]) => `<button class="btn sm" data-d="${k}">${l}</button>`).join('')}</div>
         <button class="btn hot go">ENTRAR NA PARTIDA</button></div></div>`;
   document.body.append(el);
-  setTimeout(() => el.querySelector('.logo').classList.add('glitch'), 1200);
 
   return new Promise((resolve) => {
     let hero = localStorage.getItem('ekoo.hero'); if (!playable.includes(hero)) hero = playable[0];

@@ -223,7 +223,8 @@ export class Unit {
       if (a && a.alive && a.targetable !== false && Math.hypot(a.pos.x - c.x, a.pos.z - c.z) < c.r + 6) return a;
       this.aggro = null; const n = g.nearest(this.team, this.pos, 6); return n && Math.hypot(n.pos.x - c.x, n.pos.z - c.z) < c.r + 2 ? n : null;
     }
-    return g.nearest(this.team, this.pos, this.K.aggro, (e) => !e.camp);   // minions de lane ignoram monstros da selva
+    // padrão MOBA: minion prioriza minion/estrutura; herói só se não houver outro alvo (ou se agredir um herói aliado — ver game.damage)
+    return g.nearest(this.team, this.pos, this.K.aggro, (e) => !e.camp && !e.isHero) || g.nearest(this.team, this.pos, this.K.aggro, (e) => !e.camp);
   }
   // lane units flow around towers instead of grinding against them
   // segue a polilinha da lane (curvas suaves) e contorna torres no referencial local da lane

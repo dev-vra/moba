@@ -170,7 +170,6 @@ export class Game {
       const s = team === 'axiom' ? -1 : 1, P = LANES[lane], st = s < 0 ? P[0] : P[P.length - 1], x0 = st[0], z0 = st[1], boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
       [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z0 + z, { laneZ: z, lane, boost }));
       [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z0 + z, { laneZ: z, lane, boost }));
-      if (team === 'ekoo' && n >= 3 && n % 2 === 1) this.spawn(melee, team, x0 + s * 1.5, z0, { laneZ: 0, lane, boost });      // EKOO slowly out-scales the lane
       if (lane === 'top') [-1.2, 1.2].forEach((z) => this.spawn(melee, team, x0 + s * 2.5, z0 + z, { laneZ: z, lane, boost }));   // rota de XP: +2 minions
       if (n % 3 === 0) this.spawn(team === 'axiom' ? 'cerco' : 'moto', team, x0 + s * 6, z0, { laneZ: 0, lane, boost });       // siege unit every third wave
     }

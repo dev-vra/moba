@@ -14,6 +14,17 @@ const ICON = {
   e: '<path d="M16 4c-7 0-10 5-10 11v11l4-3 3 3 3-3 3 3 3-3 4 3V15C26 9 23 4 16 4Zm-4 9h3m2 0h3" />',
   r: '<circle cx="16" cy="16" r="9"/><path d="M16 2v8m0 12v8M2 16h8m12 0h8M16 13v6m-3-3h6" />',
 };
+// ícones por herói (o padrão acima é o do Vetor)
+const KIT_ICON = {
+  enxame: { q: '<path d="M4 16h8m4 0h4m4 0h4M8 10l4 6-4 6M20 10l4 6-4 6"/>', w: '<circle cx="16" cy="16" r="10"/><path d="M6 16h20M16 6v20M9 9l14 14M23 9 9 23"/>',
+    e: '<path d="M16 3 27 8v8c0 7-5 11-11 13C10 27 5 23 5 16V8Z"/><circle cx="16" cy="15" r="3"/>', r: '<path d="M8 6l3 5M16 4v6M24 6l-3 5M6 26l5-9h10l5 9Z"/>' },
+  sentinela: { q: '<path d="M4 26 24 6l3 1-1 3L6 28Zm16-14 4 4"/>', w: '<path d="M16 3 27 7v9c0 7-5 11-11 13C10 27 5 23 5 16V7Z"/><path d="M16 9v14M10 15h12"/>',
+    e: '<circle cx="16" cy="16" r="4"/><path d="M16 4v4m0 16v4M4 16h4m16 0h4M8 8l3 3m10 10 3 3M24 8l-3 3M11 21l-3 3"/>', r: '<path d="M16 3v14m-6-5 6 6 6-6M5 27h22M8 23l3-4m13 4-3-4"/>' },
+  ferrovelho: { q: '<path d="M6 8a4 4 0 1 1 6 3l10 10a4 4 0 1 1-3 3L9 14a4 4 0 0 1-3-6Z"/>', w: '<rect x="7" y="4" width="18" height="24" rx="2"/><path d="M10 8h12v7H10Z"/>',
+    e: '<path d="M16 4v12M10 10l6 6 6-6M4 24c4-3 8-3 12 0s8 3 12 0"/>', r: '<path d="M4 16h16m-5-7 9 7-9 7M24 6v20"/>' },
+  desplugada: { q: '<path d="M4 16h20m-5-5 6 5-6 5M4 13l3 3-3 3"/>', w: '<path d="M8 4l2 6M16 3v7M24 4l-2 6M6 22l4-6M16 24v-8M26 22l-4-6"/>', e: '<path d="M24 8 12 20m0-8v8h8M6 26h6"/>', r: '<circle cx="16" cy="16" r="10"/><path d="M4 16h24m-6-5 6 5-6 5"/>' },
+  valvula: { q: '<path d="M4 16c3-6 5 6 8 0s5 6 8 0 5 6 8 0"/>', w: '<path d="M16 6v20M6 16h20"/><circle cx="16" cy="16" r="11"/>', e: '<path d="M6 6c4 4 4 16 0 20M12 9c2 3 2 11 0 14M26 6c-4 4-4 16 0 20M20 9c-2 3-2 11 0 14"/>', r: '<path d="M16 4v6m0 0-8 18m8-18 8 18M11 20h10"/><circle cx="16" cy="4" r="2"/>' },
+};
 const KEY = { passive: '', basic: 'ESPAÇO', q: 'Q', w: 'W', e: 'E', r: 'R' }, NUM = { q: 1, w: 2, e: 3, r: 4 };
 const svg = (d, cls = '') => `<svg viewBox="0 0 32 32" class="${cls}">${d}</svg>`;
 const mmss = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -150,7 +161,10 @@ export class HUD {
       for (const k of kits) { const c = document.createElement('button'); c.innerHTML = `<i>${k.role}</i><b>${k.name}</b><span>${k.title}</span><p>${k.blurb}</p><ul>${['q', 'w', 'e', 'r'].map((s) => `<li><kbd>${s.toUpperCase()}</kbd> ${k.skills[s].name}</li>`).join('')}</ul>`; c.onclick = () => { this.pickEl.classList.remove('on'); res(k.id); }; box2.appendChild(c); }
     });
   }
-  setHero(hero) { this.hero = hero; this.el.name.textContent = hero.kit.name; }
+  setHero(hero) {
+    this.hero = hero; this.el.name.textContent = hero.kit.name;
+    for (const k of ['q', 'w', 'e', 'r']) { const s = document.querySelector(`#hud .ab.${k} svg`); if (s) s.innerHTML = (KIT_ICON[hero.kit.id] || ICON)[k] || ICON[k]; }
+  }
   update(hero, time, game, rig, dt) {
     this.hero = hero; const E = this.el;
     this.clock.textContent = mmss(time); E.axK.textContent = game.score.axiom; E.ekK.textContent = game.score.ekoo; E.axC.textContent = game.campScore.axiom; E.ekC.textContent = game.campScore.ekoo; E.kda.textContent = hero.stat.kills + ' / ' + hero.stat.deaths + ' / ' + hero.stat.cs;

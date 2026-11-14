@@ -62,7 +62,7 @@ const DESPLUGADA = {
   id: 'desplugada', name: 'DESPLUGADA', title: 'A Atiradora do Coro', role: 'ATIRADORA', team: 'ekoo', barY: 3.9,
   blurb: 'Dano sustentado à distância com arco de sucata e flechas de cobre.',
   passive: { name: 'SEM SINAL', desc: 'Quem não tem sinal não pode ser desligado: imune a lentidão por 1s após saltar.' },
-  base: { hp: 2100, atk: 98, speed: 7.0, range: 9.5, hpLvl: 140, atkLvl: 8 },
+  base: { hp: 2150, atk: 104, speed: 7.0, range: 9.5, hpLvl: 145, atkLvl: 8 },
   build() { return new Puppet('desplugada', 'ekoo', 'bow'); },
   update(h, dt) { h.hopFn?.(dt); },
   basic(h, tg) { rangedBasic(h, tg, { wind: 0.24, time: 0.8, speed: 38, size: 1.6, arrow: true }); },
@@ -85,18 +85,18 @@ const VALVULA = {
   id: 'valvula', name: 'VÁLVULA', title: 'A Rádio-Operadora do Coro', role: 'SUPORTE', team: 'ekoo', barY: 4.2,
   blurb: 'Cura aliados e desorienta inimigos com ondas de rádio.',
   passive: { name: 'SINTONIA', desc: 'Curas de Válvula também restauram energia dos heróis aliados.' },
-  base: { hp: 2300, atk: 72, speed: 6.8, range: 8.5, hpLvl: 150, atkLvl: 6 },
+  base: { hp: 2450, atk: 84, speed: 6.9, range: 8.5, hpLvl: 160, atkLvl: 7 },
   build() { return new Puppet('valvula', 'ekoo', 'mage'); },
   basic(h, tg) { rangedBasic(h, tg, { wind: 0.22, time: 0.95, speed: 26 }); },
   update(h, dt) {
-    if (h.choir && h.t < h.choir.until) { if ((h.choir.next -= dt) <= 0) { h.choir.next = 0.5; h.vfx.ring(h.pos, { r0: 1, r1: 9, dur: 0.5, color: h.color, k: 1.8 }); for (const e of h.game.allies(h.team)) if (e.pos.distanceTo(h.pos) < 9) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * h.choir.pct); } }
+    if (h.choir && h.t < h.choir.until) { if ((h.choir.next -= dt) <= 0) { h.choir.next = 0.5; h.vfx.ring(h.pos, { r0: 1, r1: 9, dur: 0.5, color: h.color, k: 1.8 }); for (const e of h.game.allies(h.team)) if (e.isHero && e.pos.distanceTo(h.pos) < 9) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * h.choir.pct); } }
   },
   skills: {
     q: { name: 'ESTÁTICA', desc: 'Pulso de estática em linha: fere e causa lentidão.', type: 'dir', ai: 'nuke', range: 11, width: 1.3, cd: [7, 6.3, 5.6], cost: 20,
       cast(h, a, r) { h.body.play('cast', 0.2); h.lock = 0.2; h.game.lineShot(h, { dir: a.dir, range: 11, speed: 26, width: 1.3, size: 2.4, dmg: h.atk * R3([1.3, 1.65, 2.0], r), onHit: (e) => h.game.slow(e, 0.6, 1.6) }); } },
     w: { name: 'FREQUÊNCIA DE CURA', desc: 'Cura a si e aos aliados próximos.', type: 'self', ai: 'heal', keepMoving: true, keepTarget: true, radius: 8, cd: [12, 11, 10], cost: 30,
       cast(h, a, r) { h.body.play('cast', 0.25); const amt = R3([150, 220, 290], r) + h.atk * 0.8; h.vfx.ring(h.pos, { r0: 1, r1: 8, dur: 0.5, color: new THREE.Color(0x7dffa0), k: 2.4 });
-        for (const e of h.game.allies(h.team)) if (e.pos.distanceTo(h.pos) < 8) { e.hp = Math.min(e.maxHp, e.hp + (e.isHero ? amt : amt * 0.5)); if (e.isHero) e.energy = Math.min(100, e.energy + 12); h.vfx.sparks({ x: e.pos.x, y: 1, z: e.pos.z }, 6, { color: new THREE.Color(0x7dffa0), speed: 2, up: 6, grav: 3, life: 0.6 }); } } },
+        for (const e of h.game.allies(h.team)) if (e.pos.distanceTo(h.pos) < 8) { e.hp = Math.min(e.maxHp, e.hp + (e.isHero ? amt : amt * 0.35)); if (e.isHero) e.energy = Math.min(100, e.energy + 12); h.vfx.sparks({ x: e.pos.x, y: 1, z: e.pos.z }, 6, { color: new THREE.Color(0x7dffa0), speed: 2, up: 6, grav: 3, life: 0.6 }); } } },
     e: { name: 'INTERFERÊNCIA', desc: 'Zona de ruído por 3s: lentidão forte e dano leve.', type: 'point', ai: 'aoe', range: 9, radius: 4.2, cd: [13, 12, 11], cost: 26,
       cast(h, a, r) { h.body.play('cast', 0.25); h.lock = 0.2; const g = h.game, d = h.atk * R3([0.3, 0.38, 0.46], r); g.zone(h, { pos: a.point, r: 4.2, dur: 3, tick: 0.5, fn: (e) => { g.damage(h, e, d); g.slow(e, 0.5, 0.8); } }); for (const e of g.inRadius(h.team, a.point, 4.2)) g.stun(e, 0.5); } },
     r: { name: 'CORO DAS 3H17', desc: 'Transmite o Coro por 5s: aliados em volta regeneram vida continuamente.', type: 'self', ai: 'healult', keepMoving: true, keepTarget: true, radius: 9, cd: [70, 60, 50], cost: 50,

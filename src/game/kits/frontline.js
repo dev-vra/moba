@@ -103,7 +103,7 @@ export const FERROVELHO = {
   id: 'ferrovelho', name: 'FERRO-VELHO', title: 'O Tanque Sucateiro do Coro', role: 'TANQUE', team: 'ekoo', barY: 4.5,
   blurb: 'Muralha de sucata: puxa inimigos com a corrente, segura a linha com a porta de caminhão e atropela tudo.',
   passive: { name: 'LATARIA', desc: 'Blindagem de sucata: 15% de redução de dano permanente.' },
-  base: { hp: 2900, atk: 86, speed: 6.8, range: 2.6, hpLvl: 210, atkLvl: 6, melee: true, armor: 0.15 },
+  base: { hp: 2950, atk: 92, speed: 6.9, range: 2.6, hpLvl: 210, atkLvl: 6, melee: true, armor: 0.15 },
   build() { return new Puppet('ferrovelho', 'ekoo', 'melee'); },
   update(h, dt) { h.hopFn?.(dt); },
   basic(h, tg) { meleeBasic(h, tg, { wind: 0.34, time: 1.05 }); },

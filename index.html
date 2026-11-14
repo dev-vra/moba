@@ -17,6 +17,10 @@
   #boot .track{width:min(420px,70vw);height:6px;margin:0 auto;background:#1a222b;border:1px solid #3a4652;border-radius:3px;overflow:hidden}
   #boot .track i{display:block;height:100%;width:8%;background:linear-gradient(90deg,#19c8ee,#ffa23a);transition:width .25s}
   #boot.off{opacity:0;pointer-events:none}
+  /* arte de loading (refs/ → /ui/loading.webp); a barra real é desenhada dentro da moldura da própria arte */
+  #boot .art{position:absolute;left:50%;top:50%;width:max(100vw,178.13vh);aspect-ratio:1376/768;transform:translate(-50%,-50%);background:url(/ui/loading.webp) center/100% 100%}
+  #boot .art .track{position:absolute;left:10.6%;top:88.75%;width:78.7%;height:2.3%;margin:0;background:#0d1216;border:0;border-radius:2px}
+  #boot .art .track i{background:linear-gradient(90deg,#c9600f,#ffb24a 60%,#5fe6ff);box-shadow:0 0 12px #ffb24a88}
   @media (pointer:coarse){#hint{display:none}}
   #hint{position:fixed;left:50%;top:72px;z-index:6;transform:translateX(-50%);color:#cfe7ee;font-size:12px;letter-spacing:.08em;
     background:rgba(12,18,24,.72);border:1px solid rgba(120,230,255,.35);padding:6px 14px;border-radius:4px;white-space:nowrap}
@@ -34,7 +38,7 @@
 <div id="logo">EKOOFALL<b>ARENA</b></div>
 <button id="quality"></button><button id="style"></button>
 <div id="hint">Clique move/ataca · ESPAÇO básico · Q W E R habilidades · 1-4 nível · A ataque-mover · B base · C loja · setas olham</div>
-<div id="boot"><div><h1>EKOOFALL</h1><h2>ARENA</h2><div class="track"><i id="bootbar"></i></div><p>CARREGANDO A CIDADE-CELEIRO · 2049</p></div></div>
+<div id="boot"><div class="art"><div class="track"><i id="bootbar"></i></div></div></div>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>
