@@ -27,6 +27,10 @@ toggle('style', 'ESTILO: ' + (style === 'hq' ? 'HQ' : 'REALISTA'), 'ekoo.style',
 let loaded = false; THREE.DefaultLoadingManager.onLoad = () => { loaded = true; };
 const bootbar = document.getElementById('bootbar'); THREE.DefaultLoadingManager.onProgress = (_u, n, total) => { bootbar.style.width = Math.round(8 + 88 * n / total) + '%'; };
 
+// tela inicial + escolha do herói ANTES de carregar o mapa (pule com ?hero=<id>)
+let choice = null;
+if (!q.get('hero')) { const { showMenu } = await import('./ui/menu.js'); choice = await showMenu({ kits: KITS, playable: PLAYABLE, foes: ['ferrovelho', 'desplugada', 'valvula'].map((k) => KITS[k]) }); }
+
 const scene = new THREE.Scene();
 const rig = new CameraRig(innerWidth / innerHeight);
 const world = buildWorld(scene, renderer, quality);
@@ -70,9 +74,9 @@ renderer.setAnimationLoop(() => {
 });
 
 // ---- hero select, then 2v2: you + the other AXIOM hero (bot) vs DESPLUGADA + VÁLVULA (bots) ----
-const pick = PLAYABLE.includes(q.get('hero')) ? q.get('hero') : await hud.pickHero(PLAYABLE.map((k) => KITS[k]));
+const pick = choice?.hero ?? (PLAYABLE.includes(q.get('hero')) ? q.get('hero') : null) ?? await hud.pickHero(PLAYABLE.map((k) => KITS[k]));
 const mate = PLAYABLE.find((k) => k !== pick);
-const DIFF = { easy: { power: 1.0, skill: 0.6 }, normal: { power: 1.22, skill: 1 }, hard: { power: 1.45, skill: 1.4 } }[q.get('diff') || hud.diff || 'normal'];
+const DIFF = { easy: { power: 1.0, skill: 0.6 }, normal: { power: 1.22, skill: 1 }, hard: { power: 1.45, skill: 1.4 } }[q.get('diff') || choice?.diff || hud.diff || 'normal'];
 hero = await Hero.create(game, scene, rig, vfx, KITS[pick], 'axiom', input, true, 0);
 for (const [i, k] of PLAYABLE.filter((k) => k !== pick).entries()) await Hero.create(game, scene, rig, vfx, KITS[k], 'axiom', new Bot(0.9), false, i + 1);   // 3v3
 for (const [i, k] of ['ferrovelho', 'desplugada', 'valvula'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = DIFF.power; e.ctrl.skill = DIFF.skill; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
