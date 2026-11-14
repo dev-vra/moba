@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { M, Batch, glowC, CYAN, AMBER } from '../core/mats.js';
 import { T } from '../core/tex.js';
-import { rng, heightAt, smooth, lerp, noise, navDist, CAMPS, BASE_X, TOWER_X } from '../core/util.js';
+import { rng, heightAt, smooth, lerp, noise, navDist, CAMPS, BRUSH, BASE_X, TOWER_X, CORE_X } from '../core/util.js';
 import { buildGround, FARMS } from './ground.js';
 import * as P from './props.js';
 import { axiomBase, ekooBase } from './bases.js';
@@ -38,7 +38,7 @@ function droneDecor(scene) {
 
 export function buildWorld(scene, renderer, quality) {
   const R = rng(2049), b = new Batch(), g = new Batch();
-  const fx = { vents: [], beams: [], smoke: [], fires: [] }, fxj = { rifts: [] };
+  const fx = { vents: [], beams: [], smoke: [], fires: [] }, fxj = { rifts: [] }, pools = [];
   scene.background = new THREE.Color(FOG); scene.fog = new THREE.Fog(FOG, 95, 290);
 
   buildGround(scene);
@@ -53,16 +53,16 @@ export function buildWorld(scene, renderer, quality) {
   P.silo(b, R, 11.5, 18.5, { r: 3, h: 10.5, tint: 0xd0c2b4 }); P.silo(b, R, 5.5, 21.5, { r: 2.4, h: 8 });
   P.beam(b, M.rust, [-7, 12.6, -13.5], [0.5, 11.2, -17], 0.5, 0x8a6a54, 0.7);      // conveyor between silos
   P.greenhouse(b, g, R, 10, -11.5, 0.06, { len: 11 }); P.greenhouse(b, g, R, -9, 13.5, 0.05, { len: 13 });
-  P.greenhouse(b, g, R, -33.5, -13, -0.06, { len: 12, ruined: true }); P.greenhouse(b, g, R, 33.5, 13.5, -0.06, { len: 12, ruined: true });
-  P.greenhouse(b, g, R, 33.5, -14, 0.08, { len: 12, wid: 5 }); P.greenhouse(b, g, R, -33.5, 14, 0.05, { len: 12, wid: 5, ruined: true });
-  P.harvester(b, R, 5, 12.5, 2.6); P.waterTank(b, R, 44, 0, -11.5); P.waterTank(b, R, -45, H(-45, 18), 18);
-  const wheels = [P.windmill(b, scene, -46, H(-46, -21), -21, 0.7), P.windmill(b, scene, 48, H(48, 22), 22, -0.5)];
+  P.greenhouse(b, g, R, -31.5, -13, -0.06, { len: 9, ruined: true }); P.greenhouse(b, g, R, 31.5, 13.5, -0.06, { len: 9, ruined: true });
+  P.greenhouse(b, g, R, 31.5, -14, 0.08, { len: 9, wid: 5 }); P.greenhouse(b, g, R, -31.5, 14, 0.05, { len: 9, wid: 5, ruined: true });
+  P.harvester(b, R, 10, 13.5, 2.6); P.waterTank(b, R, 50, 0, -8.6); P.waterTank(b, R, -50, 0, 8.6);
+  const wheels = [P.windmill(b, scene, -60, H(-60, -31), -31, 0.7), P.windmill(b, scene, 60, H(60, 31), 31, -0.5)];
   let prev = null;
   for (let x = -46; x <= 46; x += 18.4) {                                           // utility poles with sagging wires
     const z = -7.6 + Math.sin(x * 0.4) * 0.4, a = P.pole(b, x, z, 0.1 * Math.sin(x));
     if (prev) { P.wire(b, prev[0], a[0], 1.1); P.wire(b, prev[1], a[1], 1.3); } prev = a;
   }
-  for (const [x1, z1, x2, z2] of [[-34, 8, -27, 8], [-2, 8.2, 12, 8], [27, -7.9, 34, -8.2], [-16, -8, -10, -7.8], [27, 8.4, 33, 8.2]]) P.fence(b, R, x1, z1, x2, z2);
+  for (const [x1, z1, x2, z2] of [[-34, 8.4, -27, 8.4], [27, -8.3, 34, -8.4], [-16, -8.4, -13, -8.2], [27, 8.4, 33, 8.4]]) P.fence(b, R, x1, z1, x2, z2);
   for (const f of FARMS) {
     const c = Math.cos(f.r), s = Math.sin(f.r), hw = f.w / 2 + 0.8, hd = f.d / 2 + 0.8;
     const pt = (u, v) => [f.x + u * c - v * s, f.z + u * s + v * c];
@@ -73,7 +73,7 @@ export function buildWorld(scene, renderer, quality) {
   const off = (x, z, m) => navDist(x, z) > m;                                        // keep props out of walkable ground
   const inFarmP = (x, z) => FARMS.some((f) => Math.abs(x - f.x) < f.w / 2 + 1 && Math.abs(z - f.z) < f.d / 2 + 1);
   for (let i = 0; i < 34; i++) { const x = (R() - 0.5) * 96, z = (R() < 0.5 ? -1 : 1) * (7.2 + R() * 4); if (off(x, z, 1.2)) (R() < 0.5 ? P.barrel : P.crate)(b, R, x, 0, z); }
-  for (const [x, z] of [[-14, 9.5], [15, -8.6], [28, 9], [-36, -9], [41, 8.6]]) P.scrap(b, R, x, z, 0.9);
+  for (const [x, z] of [[-15, 9.8], [15, -9.2], [28, 9.4], [-33, -9.6], [48, 9.6]]) P.scrap(b, R, x, z, 0.9);
   for (let i = 0; i < 150; i++) {                                                     // open-field scatter
     const x = (R() - 0.5) * 190, z = (R() < 0.5 ? -1 : 1) * (7.5 + R() * 60), t = smooth(-60, 60, x);
     if ((Math.abs(x) > 56 && Math.abs(z) < 24) || !off(x, z, 1.6) || inFarmP(x, z)) continue;
@@ -100,6 +100,15 @@ export function buildWorld(scene, renderer, quality) {
     }
     for (let i = 0; i < 12; i++) { const a = R() * 6.28, d = c.r + R() * 2.5; P.rock(b, R, c.x + Math.cos(a) * d, 0, c.z + Math.sin(a) * d, 1 + R() * 1.4, 0x8a8494); }
     fxj.rifts.push([fx0, 2.4, fz0, c.side]);
+  }
+  // ---------- the ORACLE core: a shard of the original world-AI, half buried beside mid lane (lore landmark) ----------
+  {
+    const ox = 0, oz = 10.8;
+    b.add(P.C(3.6, 4.2, 0.5, 9), M.rock, [ox, 0.2, oz], [0, 0.3, 0], 0x6a6672);
+    for (let i = 0; i < 7; i++) { const a = i * 0.9 + 0.2, r = 1.2 + (i % 3) * 0.9, hgt = 3.2 + (i * 1.7) % 4.2; b.add(P.C(0.08, 0.55 + (i % 2) * 0.25, hgt, 5), M.flat, [ox + Math.cos(a) * r, hgt / 2, oz + Math.sin(a) * r], [Math.sin(a) * 0.18, i, -Math.cos(a) * 0.18], 0x15161c); }
+    b.add(P.C(0.05, 0.9, 6.5, 6), M.flat, [ox, 3.3, oz], [0.06, 0, 0.05], 0x0e0f14);
+    for (const [c, y, r] of [[CYAN, 2.2, 1.5], [AMBER, 3.4, 1.15], [0xa55cff, 4.6, 0.8]]) b.add(new THREE.TorusGeometry(r, 0.05, 5, 28), M.glow, [ox, y, oz], [Math.PI / 2 + 0.25, 0, 0.3], glowC(c, 2.6));
+    pools.push([ox, oz, 6, 0x8a6cff, 0.5]);
   }
   // tower pads
   b.add(P.C(3.3, 3.7, 0.3, 8), M.axiom, [-TOWER_X, 0.15, 0], [0, 0.39, 0], 0xdfe6ee);
@@ -158,6 +167,18 @@ export function buildWorld(scene, renderer, quality) {
   }
   corn.layers.set(1); corn.castShadow = true; scene.add(corn);
 
+  // ---------- milharais: tall corn patches heroes can hide in (fade when the local hero is inside) ----------
+  const tall = stalkGeo.clone(); tall.scale(1.5, 2.5, 1.5);
+  const brush = BRUSH.map((z) => {
+    const n = Math.round(z.r * z.r * 9), mat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, transparent: true, opacity: 1 }), m = new THREE.InstancedMesh(tall, mat, n);
+    for (let i = 0; i < n; i++) {
+      const a = R() * 6.283, d = Math.sqrt(R()) * z.r; dummy.position.set(z.x + Math.cos(a) * d, 0, z.z + Math.sin(a) * d); dummy.rotation.set((R() - 0.5) * 0.25, R() * 6.28, (R() - 0.5) * 0.25); dummy.scale.setScalar(0.8 + R() * 0.5); dummy.updateMatrix();
+      m.setMatrixAt(i, dummy.matrix); m.setColorAt(i, col.setHSL(0.16 + R() * 0.08, 0.5, 0.22 + R() * 0.14));
+    }
+    m.layers.set(1); m.castShadow = true; scene.add(m); return mat;
+  });
+
+
   // ---------- lighting: HDRI image-based ambient + one warm sun ----------
   new HDRLoader().load(`${import.meta.env.BASE_URL}env/sky_1k.hdr`, (tex) => {
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; tex.dispose(); pm.dispose();
@@ -171,6 +192,14 @@ export function buildWorld(scene, renderer, quality) {
   const pl = (c, i, d, x, y, z) => { const l = new THREE.PointLight(c, i, d, 1.5); l.position.set(x, y, z); scene.add(l); return l; };
   const axL = pl(0x6fe0ff, 46, 44, -BASE_X + 10, 7, 0), ekL = pl(0xffb468, 42, 44, BASE_X - 6, 10, 0);
   const fires = fx.fires.slice(0, 1).map(([x, y, z]) => pl(0xff8a3c, 14, 13, x, y + 0.6, z));
+  // light pools: cheap painted light on the ground under lamps, fires, rifts and objectives
+  for (const s of [-1, 1]) { pools.push([-54.5, s * 7.6, 4, 0x35dcff, 0.5], [-46, s * 7.4, 3.4, 0x35dcff, 0.45], [-70, s * 8, 4, 0x35dcff, 0.45], [54, s * 7.4, 4.5, 0xff8a2e, 0.6], [60, s * 8.2, 3.6, 0xffb060, 0.4], [47, s * 7.9, 3.6, 0xffb060, 0.4]); }
+  pools.push([-TOWER_X, 0, 7, 0x35dcff, 0.4], [TOWER_X, 0, 7, 0xff9a3c, 0.4], [-CORE_X, 0, 9, 0x35dcff, 0.5], [CORE_X, 0, 9, 0xff9a3c, 0.5]);
+  for (const c of CAMPS) pools.push([c.x, c.z + (c.rift ? c.side * 4 : 0), c.rift ? 11 : 6, 0x8a4cff, c.rift ? 0.55 : 0.3]);
+  const poolGeo = new THREE.PlaneGeometry(1, 1); poolGeo.rotateX(-Math.PI / 2);
+  const poolMesh = new THREE.InstancedMesh(poolGeo, new THREE.MeshBasicMaterial({ map: T.soft, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), pools.length);
+  pools.forEach(([x, z, r, c, k], i) => { dummy.position.set(x, 0.07, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(r * 2, 1, r * 2); dummy.updateMatrix(); poolMesh.setMatrixAt(i, dummy.matrix); poolMesh.setColorAt(i, col.set(c).multiplyScalar(k)); });
+  poolMesh.layers.set(1); scene.add(poolMesh);
   fxj.rifts.forEach(([x, y, z]) => pl(0x9a5cff, 34, 20, x, 3, z));
 
   // ---------- atmosphere ----------
@@ -209,7 +238,8 @@ export function buildWorld(scene, renderer, quality) {
   const drones = [0, 1, 2].map((i) => { const d = droneDecor(scene); d.userData = { r: 13 + i * 4, h: 13 + i * 2.5, sp: 0.35 - i * 0.07, p: i * 2.1 }; return d; });
 
   return {
-    update(t, dt, focus, dist, cam) {
+    update(t, dt, focus, dist, cam, zone = -1) {
+      brush.forEach((m, i) => { m.opacity += ((i === zone ? 0.35 : 1) - m.opacity) * Math.min(1, dt * 8); });
       // shadow frustum fitted to the visible ground footprint, snapped to texels (no shimmer while panning)
       const half = Math.ceil(dist * 0.8 / 4) * 4;
       if (half !== sHalf) { sHalf = half; Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 220 }); sun.shadow.camera.updateProjectionMatrix(); }

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { Unit } from './units.js';
 import { Tower } from './towers.js';
 import { C_AMBER, C_CYAN, C_VIOLET, C_WHITE } from './vfx.js';
-import { CAMPS, BLOCKERS, clamp, widen } from '../core/util.js';
+import { CAMPS, BLOCKERS, clamp, widen, inBrush } from '../core/util.js';
 import { REWARD } from './items.js';
 
 export const TEAM_COL = { axiom: C_CYAN, ekoo: C_AMBER, vessari: C_VIOLET };
@@ -37,17 +37,21 @@ export class Game {
     this.shotPool = Array.from({ length: 36 }, () => { const m = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ color: 0xffffff })); m.visible = false; m.layers.set(1); scene.add(m); return m; });
   }
   start() {
-    this.towers = [this.add(new Tower(this, 'axiom')), this.add(new Tower(this, 'ekoo'))];
+    this.towers = [this.add(new Tower(this, 'axiom')), this.add(new Tower(this, 'ekoo')), this.add(new Tower(this, 'axiom', true)), this.add(new Tower(this, 'ekoo', true))];
     for (const tw of this.towers) BLOCKERS.push({ x: tw.pos.x, z: tw.pos.z, r: tw.radius, on: () => tw.alive });
     this.camps = CAMPS.map((c) => new Camp(this, c));
   }
   add(e) { this.ents.push(e); if (e.isHero) this.heroes.push(e); return e; }
+  // a core cannot be hurt while its outer tower stands
+  guarded(core) { return core.isCore && this.towers.some((t) => !t.isCore && t.team === core.team && t.alive); }
+  // the structure a team must attack next / defend first
+  front(team) { return this.towers.find((t) => t.team === team && !t.isCore && t.alive) || this.towers.find((t) => t.team === team && t.isCore); }
   spawn(kind, team, x, z, o) { return this.add(new Unit(this, kind, team, x, z, o)); }
   after(delay, fn) { this.timers.push({ t: this.t + delay, fn }); }
   say(text, cls = '') { this.hud?.announce(text, cls); }
 
   // ---- queries ----
-  enemies(team) { return this.ents.filter((e) => e.alive && e.team !== team && e.targetable !== false); }
+  enemies(team) { return this.ents.filter((e) => e.alive && e.team !== team && e.targetable !== false && !(e.isHero && e.hidden[team])); }
   inRadius(team, p, r) { return this.enemies(team).filter((e) => Math.hypot(e.pos.x - p.x, e.pos.z - p.z) <= r + e.radius); }
   nearest(team, p, r, f) { let best = null, bd = r; for (const e of this.enemies(team)) { if (f && !f(e)) continue; const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z) - e.radius; if (d < bd) { bd = d; best = e; } } return best; }
   inCone(team, p, dir, r, half) {
@@ -64,6 +68,8 @@ export class Game {
   damage(src, target, amount, { crit = false, heavy = false, color = null } = {}) {
     if (!target.alive || this.over) return 0;
     if (target.isHero && target.targetable === false) return 0;                 // ghost / ultimate: untouchable
+    if (this.guarded(target)) { if (src === this.hero && Math.random() < 0.4) this.vfx.number(target.pos, 'NÚCLEO PROTEGIDO — derrube a torre primeiro', 'info'); return 0; }
+    if (src.isHero) src.revealUntil = this.t + 1.4;                             // attacking gives your position away
     let dmg = amount, shielded = false; const col = color || TEAM_COL[src.team] || C_WHITE, P = this.hero;
     if (src.isHero && target.markUntil > this.t && src.kit?.id === 'vetor') dmg *= 1.25;
     if (src.isHero && src.buffs.power > this.t) dmg *= 1.18;
@@ -148,7 +154,7 @@ export class Game {
   spawnWave() {
     const n = ++this.wave, count = this.ents.filter((e) => e.isUnit && e.alive).length; if (count > MAX_UNITS) return;
     for (const team of ['axiom', 'ekoo']) {
-      const s = team === 'axiom' ? -1 : 1, x0 = s * 57, boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
+      const s = team === 'axiom' ? -1 : 1, x0 = s * 64, boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
       [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z, { laneZ: z, boost }));
       [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z, { laneZ: z, boost }));
       if (team === 'ekoo' && n >= 3 && n % 2 === 1) this.spawn(melee, team, x0 + s * 1.5, 0, { laneZ: 0, boost });      // EKOO slowly out-scales the lane
@@ -170,6 +176,11 @@ export class Game {
     this.t += dt;
     for (let i = this.timers.length - 1; i >= 0; i--) if (this.t >= this.timers[i].t) this.timers.splice(i, 1)[0].fn();
     if (!this.over) { if (this.t >= this.nextWave) { this.nextWave += WAVE_EVERY; this.spawnWave(); } for (const c of this.camps) c.update(this); }
+    // brush stealth: a hero in a corn patch is hidden from a team with nobody in that patch or within 3.5 of it
+    for (const h of this.heroes) {
+      const zi = h.alive ? inBrush(h.pos.x, h.pos.z) : -1; h.brush = zi;
+      for (const T of ['axiom', 'ekoo']) h.hidden[T] = T !== h.team && zi >= 0 && this.t > (h.revealUntil || 0) && !this.ents.some((e) => e.alive && e.team === T && (e.isHero || e.isUnit) && (Math.hypot(e.pos.x - h.pos.x, e.pos.z - h.pos.z) < 3.5 || inBrush(e.pos.x, e.pos.z) === zi));
+    }
     for (const e of this.ents) e.update?.(dt, this);
     this.updateShots(dt);
     // soft separation between units; lane units stay inside the lane; nobody stands inside a tower

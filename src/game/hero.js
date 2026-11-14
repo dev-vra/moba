@@ -5,7 +5,7 @@
 //   ctrl.aimKey    : skill key being aimed (indicator preview)      ctrl.stick: touch joystick
 // The kit (kits/*.js) supplies the body (model + animation) and the four skills.
 import * as THREE from 'three';
-import { clampWalk, findPath, SPAWN_X } from '../core/util.js';
+import { clampWalk, findPath, clear, SPAWN_X } from '../core/util.js';
 import { Bar, Indicator, C_WHITE } from './vfx.js';
 import { MAX_LEVEL, SLOTS, xpNeed } from './items.js';
 import { BUFFS, TEAM_COL } from './game.js';
@@ -20,7 +20,7 @@ export class Hero {
     const s = team === 'axiom' ? -1 : 1; this.spawnPos = new THREE.Vector3(s * SPAWN_X, 0, (slot - 0.5) * 5); this.pos = this.spawnPos.clone(); this.yaw = -s * Math.PI / 2; this.color = TEAM_COL[team];
     this.t = 0; this.level = 1; this.xp = 0; this.gold = 300; this.items = []; this.points = 1; this.ranks = { q: 0, w: 0, e: 0, r: 0 }; this.buffs = { power: 0, signal: 0 }; this.shield = 0; this.energy = 100;
     this.stat = { kills: 0, deaths: 0, dmg: 0, cs: 0 }; this.skills = {}; for (const k of KEYS) this.skills[k] = { ...kit.skills[k], ready: 0, cdNow: 1 };
-    this.path = []; this.target = null; this.atkT = 0; this.lock = 0; this.recall = null; this.timers = []; this.respawnAt = 0; this.combatAt = -99; this.repath = 0; this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.hasteMul = 1;
+    this.path = []; this.target = null; this.atkT = 0; this.lock = 0; this.recall = null; this.timers = []; this.respawnAt = 0; this.combatAt = -99; this.repath = 0; this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.hasteMul = 1; this.hidden = { axiom: false, ekoo: false }; this.brush = -1; this.revealUntil = 0; this.vel = 0; this.pull = 0;
     this.recalc();
   }
   async init() {
@@ -145,16 +145,20 @@ export class Hero {
     if (this.lock <= 0 && !this.busy && !this.recall) {
       _b.set(0, 0, 0);
       if (c.stick && c.stick.lengthSq() > 0.01) { _b.addScaledVector(this.rig.right, c.stick.x).addScaledVector(this.rig.fwd, c.stick.y); sp *= Math.min(1, c.stick.length()); this.path = []; this.target = null; }
-      else if (this.path.length) { const p = this.path[0]; _b.set(p.x - this.pos.x, 0, p.z - this.pos.z); if (_b.length() < Math.max(0.25, sp * dt)) { this.path.shift(); if (!this.path.length) _b.set(0, 0, 0); } }
+      else if (this.path.length) {
+        if (this.path.length > 1 && (this.pull -= dt) <= 0) { this.pull = 0.12; const n = this.path[1]; if (clear(this.pos.x, this.pos.z, n.x, n.z)) this.path.shift(); }    // cut corners as soon as the next leg is visible
+        const p = this.path[0]; _b.set(p.x - this.pos.x, 0, p.z - this.pos.z); if (_b.length() < Math.max(0.25, sp * dt)) { this.path.shift(); if (!this.path.length) _b.set(0, 0, 0); } }
       const l = _b.length();
-      if (l > 0.01) { _b.divideScalar(l); this.pos.addScaledVector(_b, sp * dt); moving = true; let dy = Math.atan2(_b.x, _b.z) - this.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); this.yaw += dy * Math.min(1, dt * 16); }
+      if (l > 0.01) { _b.divideScalar(l); this.vel += (sp - this.vel) * Math.min(1, dt * 18); this.pos.addScaledVector(_b, this.vel * dt); moving = true; let dy = Math.atan2(_b.x, _b.z) - this.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); this.yaw += dy * Math.min(1, dt * 22); }
+      else this.vel = 0;
     }
     if (!this.busy) clampWalk(this.pos);
     for (const tw of g.towers) if (tw.alive) { const dx = this.pos.x - tw.pos.x, dz = this.pos.z - tw.pos.z, d = Math.hypot(dx, dz) || 0.01, min = tw.radius + 0.7; if (d < min) { this.pos.x += dx / d * (min - d); this.pos.z += dz / d * (min - d); } }
 
     // ---- presentation ----
     this.body.update(dt, { moving, speedK: sp / this.kit.base.speed }); this.root.position.copy(this.pos); this.root.rotation.y = this.yaw;
-    this.bar.g.visible = this.targetable || this.isPlayer; this.bar.set(this.pos, this.kit.barY || 3.8, this.hp / this.maxHp); this.ring.visible = true; this.ring.position.set(this.pos.x, 0.07, this.pos.z); this.ring.rotation.y -= dt * 0.8;
+    const seen = this.team === g.playerTeam || !this.hidden[g.playerTeam]; this.root.visible = seen; this.seen = seen;
+    this.bar.g.visible = seen && (this.targetable || this.isPlayer); this.bar.set(this.pos, this.kit.barY || 3.8, this.hp / this.maxHp); this.ring.visible = seen; this.ring.position.set(this.pos.x, 0.07, this.pos.z); this.ring.rotation.y -= dt * 0.8;
     if (this.isPlayer) {
       this.rig.goal.set(this.pos.x, 0, this.pos.z); const k = c.aimKey, s = k && this.skills[k];
       if (s && this.ranks[k] > 0 && c.aim && s.type !== 'self') {

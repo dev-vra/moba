@@ -2,7 +2,7 @@
 // plus a tint map (large-scale variation, tyre tracks, mud, oil, frost, AXIOM plating) and an emissive mask.
 import * as THREE from 'three';
 import { mk, pbr } from '../core/tex.js';
-import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS } from '../core/util.js';
+import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS, BRUSH } from '../core/util.js';
 
 export const SIZE_X = 230, SIZE_Z = 180;
 export const FARMS = [
@@ -33,6 +33,7 @@ function trails(R, fn) {
 function paintSplat(R) {                       // R = lane dirt, G = gravel / dry soil, B = AXIOM plating
   const p = painter(1024, 800, '#000'), { x } = p; x.globalCompositeOperation = 'lighter';
   trails(R, (wx, wz) => p.dab(wx, wz, 1.5 + R() * 1.5, '#ff0000', 0.4));
+  for (const b of BRUSH) for (let i = 0; i < 30; i++) { const a = R() * 6.283, d = Math.sqrt(R()) * b.r; p.dab(b.x + Math.cos(a) * d, b.z + Math.sin(a) * d, 1 + R(), '#00ff00', 0.4); }   // tilled soil under the corn
   for (const f of FARMS) for (let i = 0; i < 220; i++) {
     const u = (R() - 0.5) * f.w, v = (R() - 0.5) * f.d, c = Math.cos(f.r), s = Math.sin(f.r);
     p.dab(f.x + u * c - v * s, f.z + u * s + v * c, 1.5 + R() * 2, '#00ff00', 0.3);

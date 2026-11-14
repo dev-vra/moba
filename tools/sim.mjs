@@ -13,7 +13,7 @@ const t0 = Date.now();
 while (Date.now() - t0 < +secs * 1000) {
   await new Promise((r) => setTimeout(r, 6000));
   const s = await pg.evaluate(() => { const G = window.__g.game, c = (t) => G.ents.filter((e) => e.isUnit && e.alive && e.team === t).length;
-    return `t=${G.t.toFixed(0).padStart(3)} T ${G.towers[0].hp}/${G.towers[1].hp} K ${G.score.axiom}x${G.score.ekoo} camps ${G.campScore.axiom}x${G.campScore.ekoo} u ${c('axiom')}/${c('ekoo')}/${c('vessari')} | ` +
+    return `t=${G.t.toFixed(0).padStart(3)} T ${G.towers.map((t) => (t.isCore ? 'C' : 'T') + t.team[0] + ':' + t.hp).join(' ')} K ${G.score.axiom}x${G.score.ekoo} camps ${G.campScore.axiom}x${G.campScore.ekoo} u ${c('axiom')}/${c('ekoo')}/${c('vessari')} | ` +
       G.heroes.map((h) => `${h.kit.id.slice(0, 4)} L${h.level} ${h.alive ? Math.round(100 * h.hp / h.maxHp) + '%' : 'dead'} x${h.pos.x.toFixed(0)} z${h.pos.z.toFixed(0)} ${h.stat.kills}/${h.stat.deaths} it${h.items.length}`).join(' | ') + ` | over:${G.over}`; });
   console.log(s); if (!s.includes('over:null')) break;
 }

@@ -192,7 +192,7 @@ export class Unit {
   }
   // lane units flow around towers instead of grinding against them
   avoid(g, mz) {
-    for (const tw of g.towers) { if (!tw.alive) continue; const dx = tw.pos.x - this.pos.x; if (dx * this.dir > -1.5 && dx * this.dir < 7.5 && Math.abs(this.pos.z) < 4.4) return clamp(((this.pos.z >= 0 ? 4.9 : -4.9) - this.pos.z) * 0.9, -1, 1); }
+    for (const tw of g.towers) { if (!tw.alive) continue; const dx = tw.pos.x - this.pos.x; const w = tw.radius + 1.9; if (dx * this.dir > -1.5 && dx * this.dir < 8 && Math.abs(this.pos.z) < w) return clamp(((this.pos.z >= 0 ? w + 0.4 : -w - 0.4) - this.pos.z) * 0.9, -1, 1); }
     return mz;
   }
   update(dt, g) {

@@ -31,7 +31,7 @@ const ENXAME = {
   basic(h, tg) { rangedBasic(h, tg, { wind: 0.2, time: 0.9 }); },
   update(h, dt) {
     const g = h.game; h.orbit += dt * (h.shield > 0 ? 4.5 : 1.6);
-    h.drones.forEach((d, i) => { const a = h.orbit + i * 2.094, r = h.shield > 0 ? 1.6 : 2.3; d.visible = h.alive; d.position.set(h.pos.x + Math.cos(a) * r, 3 + Math.sin(h.t * 2 + i) * 0.25, h.pos.z + Math.sin(a) * r); d.rotation.y = -a; });
+    h.drones.forEach((d, i) => { const a = h.orbit + i * 2.094, r = h.shield > 0 ? 1.6 : 2.3; d.visible = h.alive && h.seen !== false; d.position.set(h.pos.x + Math.cos(a) * r, 3 + Math.sin(h.t * 2 + i) * 0.25, h.pos.z + Math.sin(a) * r); d.rotation.y = -a; });
     if ((h.zapT -= dt) <= 0) { const e = g.nearest(h.team, h.pos, 7.5); h.zapT = e ? 2.4 : 0.4; if (e) { const d = h.drones[(Math.random() * 3) | 0]; g.shoot(h, e, h.atk * 0.32 + h.level * 4, { from: d.position.clone(), speed: 34, size: 0.8 }); } }
   },
   skills: {

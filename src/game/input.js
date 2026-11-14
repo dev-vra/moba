@@ -1,10 +1,12 @@
 // Player controller (PC MOBA scheme). Turns mouse / keyboard / touch into hero commands — nothing here touches game state directly.
-//   Right click      move there · on an enemy: attack it          Mouse   aims everything
+//   Left click       move there · on an enemy: attack it (hold and drag to keep steering)     Mouse aims everything
 //   Space (hold)     basic attack toward the cursor               Q W E R hold = aim preview, release = cast at the cursor
 //   1 2 3 4          spend a skill point on Q W E R               B       recall to base      S  stop      C / P  shop
 //   Touch            joystick moves, round buttons cast (drag a button to aim)
 import * as THREE from 'three';
 
+import { clampWalk } from '../core/util.js';
+const GREEN = new THREE.Color(0x5dff7a), RED = new THREE.Color(0xff4a2a);
 const SKILL = { KeyQ: 'q', KeyW: 'w', KeyE: 'e', KeyR: 'r' }, LEVEL = { Digit1: 'q', Digit2: 'w', Digit3: 'e', Digit4: 'r' };
 
 export class Input {
@@ -15,13 +17,13 @@ export class Input {
     const ground = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, rig.camera); return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null; };
     const order = (p, fresh) => {
       if (!p) return; const game = this.game, tg = game.nearest(game.playerTeam, p, 1.7);
-      if (tg) { if (fresh) { this.cmds.push({ t: 'attack', target: tg }); game.vfx.ring(tg.pos, { r0: tg.radius + 1.2, r1: tg.radius + 0.3, dur: 0.25, k: 2.6, color: new THREE.Color(0xff5a3c) }); } }
-      else { this.cmds.push({ t: 'move', x: p.x, z: p.z }); if (fresh) game.vfx.ring(p, { r0: 1.3, r1: 0.25, dur: 0.3, k: 2.2, color: new THREE.Color(0x6dff8a) }); }
+      if (tg) { if (fresh) { this.cmds.push({ t: 'attack', target: tg }); game.vfx.click(tg.pos, RED, tg.radius + 0.6); } }
+      else { this.cmds.push({ t: 'move', x: p.x, z: p.z }); if (fresh) game.vfx.click(clampWalk(p.clone()), GREEN, 1); }
     };
     let rmb = false, last = 0;
     dom.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; this.aim = ground(e); if (rmb && performance.now() - last > 140) { last = performance.now(); order(this.aim, false); } });
-    dom.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; this.aim = ground(e); if (e.button === 2) { rmb = true; last = performance.now(); order(this.aim, true); } });
-    addEventListener('pointerup', (e) => { if (e.button === 2) rmb = false; });
+    dom.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; this.aim = ground(e); if (e.button === 0 || e.button === 2) { rmb = true; last = performance.now(); order(this.aim, true); } });
+    addEventListener('pointerup', () => { rmb = false; });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
     dom.addEventListener('wheel', (e) => { rig.distGoal = THREE.MathUtils.clamp(rig.distGoal + Math.sign(e.deltaY) * 3, 34, 66); }, { passive: true });
     addEventListener('keydown', (e) => {

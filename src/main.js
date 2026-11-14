@@ -9,6 +9,7 @@ import { Game } from './game/game.js';
 import { Hero } from './game/hero.js';
 import { Bot } from './game/bot.js';
 import { KITS, PLAYABLE } from './game/kits/index.js';
+import { inBrush } from './core/util.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -53,7 +54,7 @@ renderer.setAnimationLoop(() => {
     game.update(gdt); vfx.update(dt);
   }
   rig.update(dt);
-  world.update(t, dt, rig.target, rig.dist, rig.camera); if (hero) hud.update(hero, game.t, game, rig, dt);
+  world.update(t, dt, rig.target, rig.dist, rig.camera, hero && hero.alive ? inBrush(hero.pos.x, hero.pos.z) : -1); if (hero) hud.update(hero, game.t, game, rig, dt);
   post.render();
   if (loaded && scene.environment && ++frames === 3) { document.getElementById('boot').classList.add('off'); window.__loaded = true; }
 });

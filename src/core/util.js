@@ -22,7 +22,8 @@ export const fbm = (x, y) => noise(x, y) * 0.6 + noise(x * 2.1, y * 2.1) * 0.3 +
 export const LANE_HALF = 5.5;       // walkable half width of the lane
 export const BASE_X = 84;           // |x| of each faction base centre
 export const SPAWN_X = 66;          // |x| of spawn pads
-export const TOWER_X = 36;          // |x| of each lane tower
+export const TOWER_X = 36;          // |x| of each outer lane tower
+export const CORE_X = 59;           // |x| of each base core (destroy it to win)
 
 // ---- walkable area: lane (wider at tower plazas) + base yards + jungle paths + Vessari camps ----
 export const widen = (x) => 1 + 0.75 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));
@@ -45,6 +46,15 @@ for (const s of [-1, 1]) for (const m of [-1, 1]) {
   PATHS.push([m * 21.5, s * 19, m * 33, s * 29]);                          // spur to the small farm camps
 }
 PATHS.push([11, -31, 24, -48], [-11, 31, -24, 48]);                        // spurs to the buff camps
+PATHS.push([24, -48, 33, -29], [-24, 48, -33, 29], [-11, -31, -24, -46], [-24, -46, -33, -29], [11, 31, 24, 46], [24, 46, 33, 29]);   // loops: every camp has two exits
+for (const s of [-1, 1]) for (const m of [-1, 1]) {
+  PATHS.push([m * 33, s * 29, m * 46, s * 22], [m * 46, s * 22, m * 55, s * 13.5]);     // outer ring: farm camp -> side gate of the base
+  PATHS.push([m * 41, s * 3, m * 41, s * 14], [m * 41, s * 14, m * 46, s * 22]);        // gank gate just behind the outer tower
+}
+// Milharais (tall corn): a hero standing inside is hidden from enemies that are not in the same patch or right next to it.
+export const BRUSH = [];
+for (const s of [-1, 1]) for (const m of [-1, 1]) BRUSH.push({ x: m * 9, z: s * 5.0, r: 2.7 }, { x: m * 21.7, z: s * 11, r: 2.9 }, { x: m * 41, z: s * 9.5, r: 2.9 }, { x: m * 16.5, z: s * 25, r: 2.8 }, { x: m * 46, z: s * 22, r: 3.1 });
+export function inBrush(x, z) { for (let i = 0; i < BRUSH.length; i++) { const b = BRUSH[i]; if ((x - b.x) ** 2 + (z - b.z) ** 2 < b.r * b.r) return i; } return -1; }
 const laneLim = (x) => { const ax = Math.abs(x); return ax > 54 ? 12.5 : lerp(5.6 * widen(x), 12.5, smooth(50, 54, ax)); };
 // distance to the walkable area (<= 0 inside). `out` receives the nearest walkable point.
 export function navDist(x, z, out) {
@@ -76,7 +86,7 @@ export function heightAt(x, z) {
 
 // ---- path finding: straight line when clear, otherwise a tiny waypoint graph (lane spine + trail joints + camps) ----
 export const BLOCKERS = [];                    // circular obstacles (towers): { x, z, r, on() }
-function clear(ax, az, bx, bz) {
+export function clear(ax, az, bx, bz) {
   const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 0.8));
   for (let i = 0; i <= n; i++) {
     const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n; if (navDist(x, z) > 0.05) return false;
@@ -88,7 +98,7 @@ let NODES = null, EDGES = null;
 function graph() {
   NODES = []; const add = (x, z) => { if (!NODES.some((n) => Math.hypot(n[0] - x, n[1] - z) < 1)) NODES.push([x, z]); };
   for (const x of [-68, -52, -44, -28, -22, -11, 0, 11, 22, 28, 44, 52, 68]) add(x, 0);
-  for (const s of [-1, 1]) for (const z of [-4.6, 4.6]) add(s * TOWER_X, z);                    // slip past either side of a tower
+  for (const s of [-1, 1]) for (const z of [-5, 5]) { add(s * TOWER_X, z); add(s * CORE_X, z * 1.3); }                    // slip past either side of a tower / core
   for (const [a, b2, c, d] of PATHS) { add(a, b2); add(c, d); } for (const c of CAMPS) add(c.x, c.z);
   EDGES = NODES.map((a, i) => NODES.map((b2, j) => (i !== j && clear(a[0], a[1], b2[0], b2[1]) ? Math.hypot(a[0] - b2[0], a[1] - b2[1]) : 0)));
 }

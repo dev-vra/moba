@@ -12,7 +12,7 @@ export class Bot {
     if ((this.shopT -= dt) <= 0) { this.shopT = 1; if (h.atBase) { const it = ITEMS.filter((i) => !h.canBuy(i)).sort((a, b) => b.cost - a.cost)[0]; if (it) this.cmds.push({ t: 'buy', item: it }); } }
     if ((this.tick -= dt) > 0 || h.busy) return; this.tick = 0.25;
     const s = h.team === 'axiom' ? -1 : 1, P = h.pos, foes = g.heroes.filter((e) => e.alive && e.team !== h.team && e.targetable !== false), foe = foes.sort((a, b) => d2(a, h) - d2(b, h))[0];
-    const foeD = foe ? d2(foe, h) : 99, eTower = g.towers.find((t) => t.team !== h.team), myTower = g.towers.find((t) => t.team === h.team);
+    const foeD = foe ? d2(foe, h) : 99, eTower = g.front(h.team === 'axiom' ? 'ekoo' : 'axiom'), myTower = g.front(h.team);
     const move = (x, z) => this.cmds.push({ t: 'move', x, z }), atk = (target) => this.cmds.push({ t: 'attack', target });
     const cast = (k, point) => { if (h.can(k) && Math.random() < 0.55 * this.skill) { this.cmds.push({ t: 'cast', k, point }); return true; } return false; };
     const byAi = (tag) => Object.keys(h.skills).filter((k) => h.skills[k].ai === tag);
@@ -48,10 +48,10 @@ export class Bot {
     }
     const unit = g.nearest(h.team, P, h.range + 4, (e) => e.isUnit && (e.lane || e.aggro === h));
     if (unit) { atk(unit); if (h.energy > 55) for (const k of byAi('aoe').concat(byAi('nuke'))) if (!h.kit.base.melee || k !== 'q') cast(k, unit.pos); return; }
-    if (eTower.alive && covered && tD < h.range + eTower.radius + 5) { atk(eTower); return; }
+    if (eTower.alive && covered && !g.guarded(eTower) && tD < h.range + eTower.radius + 5) { atk(eTower); return; }
     // ---- follow the wave: stay just behind our front-most lane unit ----
     const front = g.ents.filter((e) => e.isUnit && e.alive && e.team === h.team && e.lane).reduce((m, e) => (s < 0 ? Math.max(m, e.pos.x) : Math.min(m, e.pos.x)), myTower.alive ? myTower.pos.x - s * 5 : s * 52);
     const gx = front + s * (h.kit.base.melee ? 1.5 : 4.5), gz = (this.z ??= (Math.random() - 0.5) * 6);
-    if (Math.hypot(P.x - gx, P.z - gz) > 2.5) move(THREE.MathUtils.clamp(gx, -TOWER_X - 20, TOWER_X + 20), gz);
+    if (Math.hypot(P.x - gx, P.z - gz) > 2.5) move(THREE.MathUtils.clamp(gx, -60, 60), gz);
   }
 }

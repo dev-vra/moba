@@ -149,3 +149,5 @@ kbd{font:700 calc(11*var(--u))/1 var(--f);background:#0b1016;border:1px solid #4
 #pick button:hover{transform:translateY(-4px);border-color:#35dcff;box-shadow:0 0 30px rgba(25,200,238,.45)}
 #pick button i{font:800 11px/1 var(--f);font-style:normal;letter-spacing:.24em;color:#ffd27a}#pick button b{display:block;font:900 30px/1.1 var(--f);letter-spacing:.1em;color:#8ff0ff;margin-top:4px}
 #pick button span{font:600 13px/1.2 var(--f);color:#9fb2c2}#pick button p{margin:10px 0;font-size:13px;color:#c4d2dc}#pick ul{list-style:none;margin:0;padding:0;font:600 12px/1.9 var(--f);color:#b9c6d2}#pick kbd{font-size:11px;margin-right:6px}
+
+#buffs .hide{border-color:#9ab83a;color:#d8ec8a}

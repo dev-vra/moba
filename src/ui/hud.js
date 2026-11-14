@@ -4,7 +4,7 @@ import './hud.css';
 import { ITEMS, MAX_LEVEL, SLOTS, xpNeed } from '../game/items.js';
 import { RANK_MAX, ULT_AT } from '../game/hero.js';
 import { BUFFS } from '../game/game.js';
-import { PATHS, PATH_R, CAMPS, widen, TOWER_X, BASE_X } from '../core/util.js';
+import { PATHS, PATH_R, CAMPS, BRUSH, widen, TOWER_X, BASE_X } from '../core/util.js';
 
 const ICON = {
   passive: '<circle cx="16" cy="16" r="9"/><path d="M16 7v18M7 16h18M10 10l12 12M22 10 10 22" />',
@@ -112,6 +112,7 @@ export class HUD {
     x.fillStyle = '#243024'; for (let i = 0; i < 260; i++) { x.globalAlpha = 0.5; x.beginPath(); x.arc(Math.random() * MM.w, Math.random() * MM.h, 3 + Math.random() * 9, 0, 6.3); x.fill(); } x.globalAlpha = 1;
     x.fillStyle = '#5c5444'; x.beginPath(); for (let wx = -74; wx <= 74; wx += 2) x.lineTo(X(wx), Z(-5.6 * widen(wx))); for (let wx = 74; wx >= -74; wx -= 2) x.lineTo(X(wx), Z(5.6 * widen(wx))); x.fill();
     x.strokeStyle = '#4c4638'; x.lineWidth = PATH_R * 2 * MM.sx; x.lineCap = 'round'; for (const [a, b, c2, d] of PATHS) { x.beginPath(); x.moveTo(X(a), Z(b)); x.lineTo(X(c2), Z(d)); x.stroke(); }
+    x.fillStyle = '#6a7a2c'; for (const b of BRUSH) { x.beginPath(); x.arc(X(b.x), Z(b.z), b.r * MM.sx, 0, 6.3); x.fill(); }
     for (const cp of CAMPS) { x.fillStyle = '#3a2c4a'; x.beginPath(); x.arc(X(cp.x), Z(cp.z), cp.r * MM.sx, 0, 6.3); x.fill(); }
     x.fillStyle = '#7f93a8'; x.fillRect(X(-100), Z(-23), X(-54) - X(-100), 46 * MM.sz); x.fillStyle = '#6a4a38'; x.beginPath(); x.ellipse(X(BASE_X + 4), Z(0), 30 * MM.sx, 24 * MM.sz, 0, 0, 6.3); x.fill();
     return c;
@@ -121,6 +122,7 @@ export class HUD {
     const col = { axiom: '#45d8ff', ekoo: '#ff6a3c', vessari: '#b070ff' };
     for (const e of game.ents) {
       if (!e.alive || e.isHero) continue; x.fillStyle = col[e.team] || '#b070ff';
+      if (e.isTower) { const k = e.isCore ? 7 : 5; x.fillRect(X(e.pos.x) - k, Z(e.pos.z) - k, k * 2, k * 2); x.strokeStyle = '#0a0e12'; x.lineWidth = 1.5; x.strokeRect(X(e.pos.x) - k, Z(e.pos.z) - k, k * 2, k * 2); continue; }
       if (e.isTower) { x.fillRect(X(e.pos.x) - 5, Z(e.pos.z) - 5, 10, 10); x.strokeStyle = '#0a0e12'; x.lineWidth = 1.5; x.strokeRect(X(e.pos.x) - 5, Z(e.pos.z) - 5, 10, 10); }
       else { x.beginPath(); x.arc(X(e.pos.x), Z(e.pos.z), e.kind === 'eco' ? 3 : 2.2, 0, 6.3); x.fill(); }
     }
@@ -149,7 +151,7 @@ export class HUD {
   update(hero, time, game, rig, dt) {
     this.hero = hero; const E = this.el;
     this.clock.textContent = mmss(time); E.axK.textContent = game.score.axiom; E.ekK.textContent = game.score.ekoo; E.axC.textContent = game.campScore.axiom; E.ekC.textContent = game.campScore.ekoo; E.kda.textContent = hero.stat.kills + ' / ' + hero.stat.deaths + ' / ' + hero.stat.cs;
-    E.axT.style.width = (100 * game.towers[0].hp / game.towers[0].maxHp) + '%'; E.ekT.style.width = (100 * game.towers[1].hp / game.towers[1].maxHp) + '%';
+    const sh = (team) => { const ts = game.towers.filter((t) => t.team === team); return 100 * ts.reduce((a, t) => a + t.hp, 0) / ts.reduce((a, t) => a + t.maxHp, 0) + '%'; }; E.axT.style.width = sh('axiom'); E.ekT.style.width = sh('ekoo');
     E.hp.style.width = (100 * hero.hp / hero.maxHp) + '%'; E.hpT.textContent = Math.ceil(hero.hp) + ' / ' + hero.maxHp; E.en.style.width = hero.energy + '%'; E.enT.textContent = Math.floor(hero.energy) + ' / 100';
     const need = xpNeed(hero.level), max = hero.level >= MAX_LEVEL; E.xp.style.width = (max ? 100 : 100 * hero.xp / need) + '%'; E.xpT.textContent = max ? 'NÍVEL MÁXIMO' : `XP ${Math.floor(hero.xp)} / ${need}`; E.lvl.textContent = hero.level;
     E.lvl.classList.toggle('up', hero.t - (hero.leveledAt ?? -9) < 1.2);
@@ -166,8 +168,8 @@ export class HUD {
       if (b.cost) b.cost.textContent = sk.cost || '';
       b.el.classList.toggle('off', locked || left > 0.05 || hero.energy < (sk.cost || 0)); b.el.classList.toggle('lit', !!sk.lit); b.el.classList.toggle('locked', locked);
     }
-    const bk = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => k + Math.ceil(hero.buffs[k] - hero.t)).join(',') + (hero.shield > 0 ? 's' + Math.ceil(hero.shield / 20) : '') + '|' + hero.points;
-    if (bk !== this.bk) { this.bk = bk; this.buffsEl.innerHTML = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => `<div class="${k}" title="${BUFFS[k].desc}"><b>${BUFFS[k].name}</b><i>${Math.ceil(hero.buffs[k] - hero.t)}s</i></div>`).join('') + (hero.shield > 0 ? `<div class="shield"><b>ESCUDO</b><i>${Math.ceil(hero.shield)}</i></div>` : '') + (hero.points > 0 ? `<div class="pts"><b>${hero.points} PONTO${hero.points > 1 ? 'S' : ''} DE HABILIDADE</b><i>teclas 1 2 3 4</i></div>` : ''); }
+    const bk = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => k + Math.ceil(hero.buffs[k] - hero.t)).join(',') + (hero.shield > 0 ? 's' + Math.ceil(hero.shield / 20) : '') + '|' + hero.points + (hero.brush >= 0 ? 'b' + (hero.hidden.ekoo ? 1 : 0) : '');
+    if (bk !== this.bk) { this.bk = bk; this.buffsEl.innerHTML = Object.keys(BUFFS).filter((k) => hero.buffs[k] > hero.t).map((k) => `<div class="${k}" title="${BUFFS[k].desc}"><b>${BUFFS[k].name}</b><i>${Math.ceil(hero.buffs[k] - hero.t)}s</i></div>`).join('') + (hero.shield > 0 ? `<div class="shield"><b>ESCUDO</b><i>${Math.ceil(hero.shield)}</i></div>` : '') + (hero.brush >= 0 ? `<div class="hide"><b>${hero.hidden.ekoo ? 'OCULTO' : 'REVELADO'}</b><i>milharal</i></div>` : '') + (hero.points > 0 ? `<div class="pts"><b>${hero.points} PONTO${hero.points > 1 ? 'S' : ''} DE HABILIDADE</b><i>teclas 1 2 3 4</i></div>` : ''); }
 
     if ((this.mmT -= dt) <= 0) {                      // 10 Hz: minimap, stats, shop state
       this.mmT = 0.1; this.drawMap(hero, game, rig);

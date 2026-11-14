@@ -100,6 +100,11 @@ export class VFX {
       const l = life * (0.5 + Math.random() * 0.7); this.pl[j * 2] = l; this.pl[j * 2 + 1] = l; this.ps[j] = size * (0.6 + Math.random() * 0.8); this.pg[j] = grav;
     }
   }
+  // order feedback: a marker that snaps shut on the clicked spot and lingers for a moment
+  click(pos, color, r = 1) {
+    this.ring(pos, { r0: r * 2.4, r1: r * 0.55, color, dur: 0.22, k: 3.4, y: 0.14 }); this.ring(pos, { r0: r * 0.55, r1: r * 0.75, color, dur: 0.55, k: 2.6, y: 0.14 });
+    this.disc(pos, { r: r * 0.9, color, dur: 0.5, k: 1.6, y: 0.13 }); this.sparks({ x: pos.x, y: 0.2, z: pos.z }, 6, { color, speed: 3, up: 4, life: 0.35, size: 0.35, grav: 9 });
+  }
   flash(pos, color = C_CYAN, k = 40) { this.light.position.set(pos.x, 2.2, pos.z); this.light.color.copy(color); this.lightK = k; }
   shake(a) { this.rig.shake = Math.max(this.rig.shake, a); }
   stop(t) { this.hitstop = Math.max(this.hitstop, t); }

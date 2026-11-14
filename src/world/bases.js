@@ -81,7 +81,7 @@ export function axiomBase(b, g, scene, R, fx) {
   b.add(new THREE.TorusGeometry(2.2, 0.06, 4, 30), M.glow, [-SPAWN_X, 0.2, 0], [PI / 2, 0, 0], cy(1.8));
   // outer dressing: barrier walls and pylons guarding the lane mouth
   for (const s of [-1, 1]) {
-    axWall(b, -57, s * 10.5, 0.25 * s, 5); axWall(b, -51.5, s * 9.2, 0.25 * s, 4); axWall(b, -63, s * 16, PI / 2, 5);
+    axWall(b, -49.5, s * 8.6, 0, 4); axWall(b, -63, s * 17.5, PI / 2, 5);
     axPylon(b, -54.5, s * 7.6, 5); axPylon(b, -46, s * 7.4, 4); axPylon(b, -70, s * 8, 5.5); axPylon(b, -62, s * 21, 4.5);
   }
 }
@@ -174,9 +174,9 @@ export function ekooBase(b, g, scene, R, fx) {
   b.add(new THREE.TorusGeometry(3.5, 0.1, 4, 28), M.glow, [SPAWN_X, 0.24, 0], [PI / 2, 0, 0], glowC(AMBER, 2.2));
   // lane mouth: barricades, drum fires, lights
   for (const s of [-1, 1]) {
-    barricade(b, R, 57, s * 9.6, s > 0 ? PI + 0.25 : -0.25); barricade(b, R, 50.5, s * 8.6, s > 0 ? PI + 0.2 : -0.2);
+    barricade(b, R, 50.5, s * 8.6, s > 0 ? PI + 0.2 : -0.2);
     drumFire(b, 54, s * 7.4); fx.fires.push([54, 1.6, s * 7.4]);
-    scrap(b, R, 61, s * 13, 1.1); scrap(b, R, 45, s * 9.5, 0.9);
+    scrap(b, R, 64, s * 17.5, 1.1);
     const [p1] = pole(b, 60, s * 8.2, 0, 6), [p2] = pole(b, 47, s * 7.9, 0, 6);
     stringLights(b, p1, p2, 1.3);
   }
