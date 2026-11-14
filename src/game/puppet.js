@@ -55,6 +55,8 @@ const MODELS = {
   },
 };
 
+export const registerModel = (name, fn) => { MODELS[name] = fn; };
+
 export class Puppet {
   constructor(kind, team, style = 'ranged') {
     this.root = MODELS[kind](HMAT[team]); this.p = {}; this.root.traverse((o) => { if (o.name) this.p[o.name] = o; }); this.scale = this.root.scale.x;
@@ -72,7 +74,12 @@ export class Puppet {
     this.wind = Math.max(0, this.wind - dt); this.cast = Math.max(0, this.cast - dt); this.aim = Math.max(0, this.aim - dt);
     const w = this.wind > 0 ? 1 - this.wind / this.windDur : 0, aim = Math.min(1, this.aim * 3), c = Math.min(1, this.cast * 5);
     P.legL.rotation.x = st; P.legR.rotation.x = -st; P.body.position.y = Math.abs(st) * 0.05 + br; P.body.rotation.x = (moving ? 0.1 : 0) - c * 0.1;
-    if (this.style === 'bow') { P.armL.rotation.x = -1.5 * aim - st * 0.5 * (1 - aim); P.armR.rotation.x = -1.2 * aim * (0.35 + w * 0.65) + st * 0.5 * (1 - aim); P.armR.rotation.z = 0; P.armL.rotation.z = 0; }
+    if (this.style === 'melee') {                     // escudo à frente (braço esq.), golpe de cima p/ baixo (braço dir.)
+      const raise = this.wind > 0 ? Math.sin(w * PI) : 0;
+      P.armL.rotation.x = -1.1 - c * 0.6 - st * 0.15; P.armL.rotation.z = 0.25;
+      P.armR.rotation.x = -(0.35 + raise * 2.3 + c * 1.4) + st * 0.35; P.armR.rotation.z = -0.25 - c * 0.3;
+    }
+    else if (this.style === 'bow') { P.armL.rotation.x = -1.5 * aim - st * 0.5 * (1 - aim); P.armR.rotation.x = -1.2 * aim * (0.35 + w * 0.65) + st * 0.5 * (1 - aim); P.armR.rotation.z = 0; P.armL.rotation.z = 0; }
     else { P.armL.rotation.x = -(0.5 + aim * 0.5 + c * 1.5) - st * 0.3 * (1 - aim); P.armR.rotation.x = -(0.5 + aim * 1.0 * (0.4 + w * 0.6) + c * 1.5) + st * 0.3 * (1 - aim); P.armL.rotation.z = 0.35 + c * 0.5; P.armR.rotation.z = -0.35 - c * 0.5; }
     R.scale.setScalar(this.scale * (1 + this.pop * 0.8));
   }

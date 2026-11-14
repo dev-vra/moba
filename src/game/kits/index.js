@@ -5,6 +5,7 @@ import { Puppet } from '../puppet.js';
 import { Parts, UMAT, box, ico, cyl } from '../units.js';
 import { C_WHITE } from '../vfx.js';
 import { VETOR } from './vetor.js';
+import { SENTINELA, FERROVELHO } from './frontline.js';
 
 const R3 = (a, r) => a[r - 1], _a = new THREE.Vector3();
 function rangedBasic(h, tg, { wind = 0.2, time = 0.85, speed = 30, size = 1.3, arrow = false } = {}) {
@@ -103,5 +104,5 @@ const VALVULA = {
   },
 };
 
-export const KITS = { vetor: VETOR, enxame: ENXAME, desplugada: DESPLUGADA, valvula: VALVULA };
-export const PLAYABLE = ['vetor', 'enxame'];
+export const KITS = { vetor: VETOR, enxame: ENXAME, sentinela: SENTINELA, desplugada: DESPLUGADA, valvula: VALVULA, ferrovelho: FERROVELHO };
+export const PLAYABLE = ['vetor', 'enxame', 'sentinela'];

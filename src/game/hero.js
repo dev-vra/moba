@@ -44,7 +44,7 @@ export class Hero {
     for (const it of this.items) for (const k in it.stats) st[k] += it.stats[k];
     const pw = this.power || 1, old = this.maxHp || B.hp; this.maxHp = Math.round((B.hp + B.hpLvl * L) * pw + st.hp); this.hp = Math.min(this.maxHp, (this.hp ?? this.maxHp) + Math.max(0, this.maxHp - old));
     this.atk = (B.atk + B.atkLvl * L) * pw + st.atk; this.speed = B.speed * (1 + st.speed); this.eregen = 5 + st.eregen + (sig ? 4 : 0); this.range = B.range;
-    this.armor = Math.min(0.6, st.armor); this.crit = st.crit; this.steal = st.steal; this.haste = Math.min(0.5, st.haste + (sig ? 0.2 : 0)); this.towerMul = 1 + st.tower;
+    this.armor = Math.min(0.6, st.armor + (B.armor || 0)); this.crit = st.crit; this.steal = st.steal; this.haste = Math.min(0.5, st.haste + (sig ? 0.2 : 0)); this.towerMul = 1 + st.tower;
   }
   gainXp(n) {
     if (this.level >= MAX_LEVEL) return; this.xp += n;
