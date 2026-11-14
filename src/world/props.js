@@ -50,8 +50,8 @@ export function silo(b, R, x, z, { r = 3.2, h = 11, tint = 0xd9cfc2 } = {}) {
 export function bush(b, R, x, y, z, s = 1, c = 0x4f7a3a) {
   const n = 2 + ((R() * 2) | 0);
   for (let i = 0; i < n; i++) {
-    const col = new THREE.Color(c).offsetHSL((R() - 0.5) * 0.04, 0, (R() - 0.5) * 0.08);
-    b.add(new THREE.IcosahedronGeometry(0.6, 1), M.flat, [x + (R() - 0.5) * s, y + 0.35 * s + R() * 0.3 * s, z + (R() - 0.5) * s],
+    const col = new THREE.Color(c).offsetHSL((R() - 0.5) * 0.04, 0.18, 0.04 + (R() - 0.5) * 0.05);
+    b.add(new THREE.IcosahedronGeometry(0.6, 1), M.leaf, [x + (R() - 0.5) * s, y + 0.35 * s + R() * 0.3 * s, z + (R() - 0.5) * s],
       [R() * 3, R() * 3, 0], col, [s * (0.8 + R() * 0.6), s * (0.6 + R() * 0.4), s * (0.8 + R() * 0.6)]);
   }
 }
@@ -105,6 +105,17 @@ export function greenhouse(b, g, R, x, z, ry, { len = 14, wid = 6, wall = 2.4, r
     }
   }
   b.pop(); g.pop();
+}
+
+export function tree(b, R, x, y, z, s = 1) {
+  b.push(x, y, z, R() * 6.28, s);
+  const h = 2.4 + R() * 1.4; b.add(C(0.16, 0.34, h, 7), M.flat, [0, h / 2, 0], [0, 0, (R() - 0.5) * 0.14], 0x3c2f25);
+  beam(b, M.flat, [0, h * 0.6, 0], [0.9, h + 0.3, 0.4], 0.12, 0x3c2f25); beam(b, M.flat, [0, h * 0.5, 0], [-0.8, h + 0.1, -0.5], 0.11, 0x3c2f25);
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Color().setHSL(0.28 + R() * 0.07, 0.5, 0.1 + R() * 0.07), a = R() * 6.28, d = i ? 0.8 + R() * 0.4 : 0;
+    b.add(new THREE.IcosahedronGeometry(1, 1), M.leaf, [Math.cos(a) * d, h + 0.3 + R() * 0.7, Math.sin(a) * d], [R() * 3, R() * 3, 0], c, [1.05 + R() * 0.45, 0.8 + R() * 0.3, 1.05 + R() * 0.45]);
+  }
+  b.pop();
 }
 
 export function fence(b, R, x1, z1, x2, z2) {

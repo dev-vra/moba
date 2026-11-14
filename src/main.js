@@ -5,13 +5,13 @@ import { buildWorld } from './world/index.js';
 import { Input } from './game/input.js';
 import { HUD } from './ui/hud.js';
 import { VFX } from './game/vfx.js';
-import { Game, spawnDummies } from './game/game.js';
+import { Game } from './game/game.js';
 import { Hero, SKILLS } from './game/hero.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.info.autoReset = false; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 
 const q = new URLSearchParams(location.search);
 // quality: ?q=low|high > saved choice > auto (touch / low-core devices start on low)
@@ -36,19 +36,21 @@ addEventListener('resize', resize); resize();
 const input = new Input(canvas, rig);
 const hud = new HUD(input, SKILLS);
 const vfx = new VFX(scene, rig, hud.fx);
-const game = new Game(scene, vfx);
-spawnDummies(game);                                   // temporary sparring targets until milestone 3 brings minions
+const game = new Game(scene, vfx, hud);
+game.start();                                         // towers + jungle camps; waves start a few seconds in
 const hero = await Hero.create(game, scene, rig, input, vfx);
 rig.snap(hero.pos.x, hero.pos.z);
-window.__g = { game, hero, input, vfx, rig };         // dev / automated screenshots
+window.__g = { game, hero, input, vfx, rig, renderer, scene };         // dev / automated screenshots
 
-const clock = new THREE.Clock(); let t = 0, frames = 0;
+const clock = new THREE.Clock(), speed = parseFloat(q.get('speed') || '1'); let t = 0, frames = 0;   // ?speed=N: dev fast-forward
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.05); t += dt;
-  input.update();
-  const gdt = vfx.hitstop > 0 ? dt * 0.06 : dt; vfx.hitstop -= dt;      // hit-stop on heavy impacts
-  game.update(gdt); vfx.update(dt); rig.update(dt);
-  world.update(t, dt, rig.target, rig.dist); hud.update(hero, game.t);
+  const dt = Math.min(clock.getDelta(), 0.05); t += dt; renderer.info.reset();
+  input.update(); window.__bot?.();
+  for (let k = 0; k < speed; k++) {
+  const gdt = (vfx.hitstop > 0 ? dt * 0.06 : dt) * (game.over ? 0.35 : 1); vfx.hitstop -= dt;      // hit-stop on heavy impacts, slow-mo on match end
+  game.update(gdt); vfx.update(dt); }
+  rig.update(dt);
+  world.update(t, dt, rig.target, rig.dist, rig.camera); hud.update(hero, game.t);
   post.render();
   if (loaded && scene.environment && ++frames === 3) { document.getElementById('boot').classList.add('off'); window.__ready = true; }
 });

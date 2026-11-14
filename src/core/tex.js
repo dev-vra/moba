@@ -125,6 +125,12 @@ T.beam = (() => {
   g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.6, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,1)');
   x.fillStyle = g; x.fillRect(0, 0, 8, 128); return fin(c, false);
 })();
+// Vessari rift: vertical lens, hot core
+T.rift = (() => {
+  const [c, x] = mk(128, 256); x.translate(64, 128); x.scale(1, 2);
+  const g = x.createRadialGradient(0, 0, 0, 0, 0, 62); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.12, 'rgba(255,255,255,.95)'); g.addColorStop(0.35, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(-64, -64, 128, 128); return fin(c, false);
+})();
 // gameplay VFX textures
 T.streak = (() => {      // soft horizontal streak, bright core
   const [c, x] = mk(128, 32), g = x.createLinearGradient(0, 0, 128, 0);

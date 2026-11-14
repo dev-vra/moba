@@ -16,6 +16,7 @@ const TILE = 3.2;
 export const M = {
   flat: plain(),                                           // untextured small parts (dark iron, rubber, foliage)
   flatDS: plain({ side: THREE.DoubleSide }),
+  leaf: plain({ roughness: 1, envMapIntensity: 0.25 }),   // foliage: matte, barely picks up the sky
   rust: std('rustA', TILE),                                // EKOO: heavy rust plate
   rustB: std('rustB', TILE),                               // EKOO: structural beams
   oldmetal: std('corrugated', TILE),                       // neutral: silos, sheds, frames
@@ -25,12 +26,12 @@ export const M = {
   rock: std('rock', 2.4),
   wood: plain({ map: T.wood, roughness: 0.85 }),
   tarp: plain({ map: T.tarp, roughness: 0.9, side: THREE.DoubleSide }),
-  glassA: noShadow(new THREE.MeshStandardMaterial({ map: T.glassA, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.12, metalness: 0, envMapIntensity: 1.6, vertexColors: true })),
-  glassB: noShadow(new THREE.MeshStandardMaterial({ map: T.glassB, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.12, metalness: 0, envMapIntensity: 1.6, vertexColors: true })),
+  glassA: noShadow(new THREE.MeshStandardMaterial({ map: T.glassA, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.3, metalness: 0, envMapIntensity: 1.2, vertexColors: true })),
+  glassB: noShadow(new THREE.MeshStandardMaterial({ map: T.glassB, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.3, metalness: 0, envMapIntensity: 1.2, vertexColors: true })),
   glow: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })),
   glowSoft: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })),
 };
-M.wood.userData.tile = 2; M.wood.userData.keepTint = true; M.tarp.userData.keepTint = true;
+M.leaf.userData.raw = true; M.wood.userData.tile = 2; M.wood.userData.keepTint = true; M.tarp.userData.keepTint = true;
 
 // Environment emissives are deliberately restrained so hero / skill VFX own the bright, saturated range.
 export const ENV_GLOW = 0.62;

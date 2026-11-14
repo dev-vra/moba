@@ -7,7 +7,7 @@ const YAW = THREE.MathUtils.degToRad(35), PITCH = THREE.MathUtils.degToRad(50);
 export class CameraRig {
   constructor(aspect) {
     this.camera = new THREE.PerspectiveCamera(30, aspect, 8, 320);
-    this.target = new THREE.Vector3(); this.goal = new THREE.Vector3(); this.dist = 36; this.distGoal = 36; this.shake = 0;
+    this.target = new THREE.Vector3(); this.goal = new THREE.Vector3(); this.dist = 48; this.distGoal = 48; this.shake = 0;
     // ground-plane basis for screen-relative movement
     this.fwd = new THREE.Vector3(Math.sin(YAW), 0, -Math.cos(YAW));
     this.right = new THREE.Vector3(Math.cos(YAW), 0, Math.sin(YAW));

@@ -2,12 +2,12 @@
 // plus a tint map (large-scale variation, tyre tracks, mud, oil, frost, AXIOM plating) and an emissive mask.
 import * as THREE from 'three';
 import { mk, pbr } from '../core/tex.js';
-import { rng, heightAt, noise, smooth, BASE_X, SPAWN_X, TOWER_X } from '../core/util.js';
+import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS } from '../core/util.js';
 
-export const SIZE_X = 230, SIZE_Z = 116;
+export const SIZE_X = 230, SIZE_Z = 180;
 export const FARMS = [
-  { x: -38, z: 24, w: 20, d: 11, r: 0.14 }, { x: 0, z: 29, w: 22, d: 10, r: -0.08 }, { x: 41, z: 26, w: 18, d: 11, r: 0.1 },
-  { x: 29, z: -28, w: 22, d: 10, r: 0.12 }, { x: -41, z: -26, w: 20, d: 10, r: -0.1 },
+  { x: -42, z: 26, w: 20, d: 11, r: 0.14 }, { x: -2, z: 56, w: 24, d: 11, r: -0.08 }, { x: 43, z: 27, w: 18, d: 11, r: 0.1 },
+  { x: 41, z: -28, w: 20, d: 10, r: 0.12 }, { x: -43, z: -27, w: 20, d: 10, r: -0.1 }, { x: 6, z: -56, w: 22, d: 10, r: 0.06 },
 ];
 const PAD = [[-112, -23], [-62, -23], [-54, -14], [-54, 14], [-62, 23], [-112, 23]];
 
@@ -24,10 +24,15 @@ function painter(W, H, bg) {
   return { c, x, sx, sz, X, Z, dab, poly };
 }
 const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
-const widen = (wx) => 1 + 0.75 * Math.exp(-(((Math.abs(wx) - TOWER_X) / 6) ** 2));
+// stamp along every jungle trail and camp clearing
+function trails(R, fn) {
+  for (const [ax, az, bx, bz] of PATHS) { const L = Math.hypot(bx - ax, bz - az); for (let d = 0; d <= L; d += 0.45) fn(ax + (bx - ax) * d / L + (R() - 0.5) * PATH_R * 1.5, az + (bz - az) * d / L + (R() - 0.5) * PATH_R * 1.5, false); }
+  for (const c of CAMPS) for (let i = 0; i < 260; i++) { const a = R() * 6.283, d = Math.sqrt(R()) * c.r * 0.95; fn(c.x + Math.cos(a) * d, c.z + Math.sin(a) * d, true); }
+}
 
 function paintSplat(R) {                       // R = lane dirt, G = gravel / dry soil, B = AXIOM plating
-  const p = painter(1024, 512, '#000'), { x } = p; x.globalCompositeOperation = 'lighter';
+  const p = painter(1024, 800, '#000'), { x } = p; x.globalCompositeOperation = 'lighter';
+  trails(R, (wx, wz) => p.dab(wx, wz, 1.5 + R() * 1.5, '#ff0000', 0.4));
   for (const f of FARMS) for (let i = 0; i < 220; i++) {
     const u = (R() - 0.5) * f.w, v = (R() - 0.5) * f.d, c = Math.cos(f.r), s = Math.sin(f.r);
     p.dab(f.x + u * c - v * s, f.z + u * s + v * c, 1.5 + R() * 2, '#00ff00', 0.3);
@@ -44,7 +49,7 @@ function paintSplat(R) {                       // R = lane dirt, G = gravel / dr
 }
 
 function paintTint(R) {                        // multiplied x2 over the albedo (128 grey = neutral)
-  const p = painter(2048, 1024, '#808080'), { x, X, Z, sx, sz } = p;
+  const p = painter(2048, 1600, '#808080'), { x, X, Z, sx, sz } = p, HH = 1600;
   for (let i = 0; i < 5000; i++) {            // broad neutral variation, cool at AXIOM, dry-warm at EKOO
     const wx = (R() - 0.5) * SIZE_X, wz = (R() - 0.5) * SIZE_Z, t = smooth(-70, 70, wx) + (R() - 0.5) * 0.3, k = R();
     const col = k < 0.4 ? '#5e625c' : k < 0.7 ? '#a3a39b' : t < 0.35 ? '#7c8a94' : t > 0.65 ? '#9a8c74' : '#7e8a70';
@@ -59,6 +64,9 @@ function paintTint(R) {                        // multiplied x2 over the albedo 
     }
     x.restore();
   }
+  // jungle: damp dark trails, Vessari corruption staining the camps violet-black
+  trails(R, (wx, wz, camp) => { if (R() < 0.5) p.dab(wx, wz, 1 + R() * 1.6, camp ? '#55485e' : '#5c5a50', 0.28); });
+  for (const c of CAMPS) for (let i = 0; i < 160; i++) { const a = R() * 6.283, d = c.r * (0.5 + R() * 1.1); p.dab(c.x + Math.cos(a) * d, c.z + Math.sin(a) * d, 0.8 + R() * 2, '#3c3048', 0.25); }
   // lane: darker worn shoulders, tyre tracks, mud
   for (let wx = -80; wx <= 80; wx += 0.5) for (const s of [-1, 1]) p.dab(wx + R(), s * (5.6 + R() * 1.6) * widen(wx), 0.9 + R() * 1.2, '#4c4840', 0.3);
   x.lineCap = 'round';
@@ -69,13 +77,13 @@ function paintTint(R) {                        // multiplied x2 over the albedo 
   }
   for (let i = 0; i < 34; i++) { const wx = -50 + R() * 100, wz = (R() * 2 - 1) * 6.5; for (let k = 0; k < 3; k++) p.dab(wx + R() * 0.8, wz + R() * 0.5, 0.3 + R() * 0.5, '#24211e', 0.5); }   // mud puddles (dark -> wet)
   // AXIOM plating: clean tiles, panel seams, light wear
-  x.save(); p.poly(PAD); x.clip(); x.globalAlpha = 1; x.fillStyle = '#7e848a'; x.fillRect(0, 0, X(-50), 1024);
+  x.save(); p.poly(PAD); x.clip(); x.globalAlpha = 1; x.fillStyle = '#7e848a'; x.fillRect(0, 0, X(-50), HH);
   for (let tx = -112; tx < -52; tx += 3) for (let tz = -24; tz < 24; tz += 3) {
     const v = 112 + R() * 34 | 0; x.globalAlpha = 0.6; x.fillStyle = `rgb(${v},${v + 3},${v + 8})`; x.fillRect(X(tx) + 2, Z(tz) + 2, 3 * sx - 4, 3 * sz - 4);
   }
   for (let i = 0; i < 500; i++) { x.globalAlpha = 0.14; x.strokeStyle = R() < 0.5 ? '#c8ccd0' : '#4a4e54'; x.lineWidth = 1; const px = X(-112 + R() * 60), py = Z((R() - 0.5) * 46), a = R() * 3; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * 26, py + Math.sin(a) * 26); x.stroke(); }
   x.globalAlpha = 0.85; x.strokeStyle = '#34383e'; x.lineWidth = 2.5;
-  for (let tx = -112; tx < -52; tx += 3) { x.beginPath(); x.moveTo(X(tx), 0); x.lineTo(X(tx), 1024); x.stroke(); }
+  for (let tx = -112; tx < -52; tx += 3) { x.beginPath(); x.moveTo(X(tx), 0); x.lineTo(X(tx), HH); x.stroke(); }
   for (let tz = -24; tz < 24; tz += 3) { x.beginPath(); x.moveTo(0, Z(tz)); x.lineTo(X(-50), Z(tz)); x.stroke(); }
   x.restore(); x.globalAlpha = 0.9; x.strokeStyle = '#2a2e34'; x.lineWidth = 5; p.poly(PAD); x.stroke();
   for (let i = 0; i < 700; i++) {             // frost creeping out of the base
@@ -90,8 +98,15 @@ function paintTint(R) {                        // multiplied x2 over the albedo 
 }
 
 function paintEmis() {
-  const p = painter(1024, 512, '#000'), { x, X, Z, sx } = p;
-  x.lineWidth = 2.2; x.strokeStyle = '#35dcff'; x.shadowColor = '#35dcff'; x.shadowBlur = 5;
+  const p = painter(1024, 800, '#000'), { x, X, Z, sx } = p;
+  // Vessari rift veins crawling out of each camp
+  x.strokeStyle = '#8a4cf0'; x.shadowColor = '#8a4cf0'; x.shadowBlur = 6; x.lineCap = 'round';
+  for (const c of CAMPS) for (let i = 0; i < 16; i++) {
+    let a = (i / 16) * 6.283 + Math.sin(i * 7) * 0.2, r = 1.5, px = c.x, pz = c.z + c.side * 5; x.lineWidth = 2.6; x.beginPath(); x.moveTo(X(px), Z(pz));
+    for (let k = 0; k < 7; k++) { a += Math.sin(i * 3 + k * 1.7) * 0.5; r = 1.2 + k * 0.25; px += Math.cos(a) * r; pz += Math.sin(a) * r; x.lineTo(X(px), Z(pz)); }
+    x.globalAlpha = 0.8; x.stroke();
+  }
+  x.globalAlpha = 1; x.lineWidth = 2.2; x.strokeStyle = '#35dcff'; x.shadowColor = '#35dcff'; x.shadowBlur = 5;
   for (const s of [-1, 1]) {
     x.beginPath(); x.moveTo(X(-BASE_X + 8), Z(s * 4.5)); x.lineTo(X(-SPAWN_X - 6), Z(s * 4.5)); x.lineTo(X(-SPAWN_X - 3), Z(s * 7.5)); x.lineTo(X(-58), Z(s * 7.5)); x.stroke();
     x.beginPath(); x.moveTo(X(-BASE_X), Z(s * 13)); x.lineTo(X(-BASE_X + 14), Z(s * 13)); x.lineTo(X(-BASE_X + 18), Z(s * 17)); x.lineTo(X(-60), Z(s * 17)); x.stroke();
@@ -101,7 +116,7 @@ function paintEmis() {
 }
 
 export function buildGround(scene) {
-  const R = rng(7), g = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, 184, 92); g.rotateX(-Math.PI / 2);
+  const R = rng(7), g = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, 184, 144); g.rotateX(-Math.PI / 2);
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
   g.computeVertexNormals();

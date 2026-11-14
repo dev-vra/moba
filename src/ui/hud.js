@@ -20,7 +20,9 @@ export class HUD {
       <div id="plate"><div class="face"></div><div class="info"><div class="name">VETOR <i>NÍVEL 1</i></div>
         <div class="bar hp"><b></b><span></span></div><div class="bar en"><b></b></div></div><div class="mark" title="Marcas aplicadas"><i>MARCAS</i><b>0</b></div></div>
       <div id="stick"><div class="knob"></div></div>
-      <div id="skills"></div><div id="tip"></div>`;
+      <div id="skills"></div><div id="tip"></div><div id="msg"></div>
+      <div id="end"><div class="card"><h1></h1><p></p><button>JOGAR NOVAMENTE</button></div></div>`;
+    this.msg = root.querySelector('#msg'); this.endEl = root.querySelector('#end'); this.endEl.querySelector('button').onclick = () => location.reload();
     this.fx = root.querySelector('#fx'); this.timer = root.querySelector('#timer span'); this.tip = root.querySelector('#tip');
     this.hp = root.querySelector('.hp b'); this.hpTxt = root.querySelector('.hp span'); this.en = root.querySelector('.en b'); this.marks = root.querySelector('.mark b');
     const box = root.querySelector('#skills'); this.btn = {};
@@ -60,7 +62,13 @@ export class HUD {
     const end = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; inp.stick.set(0, 0); el.classList.remove('down'); };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   }
+  end(result, st) {
+    const win = result === 'victory', mm = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    this.endEl.className = 'on ' + result; this.endEl.querySelector('h1').textContent = win ? 'VITÓRIA' : 'DERROTA';
+    this.endEl.querySelector('p').innerHTML = (win ? 'A torre de rádio EKOO caiu. O sinal das 3h17 foi silenciado.' : 'A torre AXIOM foi destruída. A quarentena falhou.') + `<br><b>${mm(st.time)}</b> de partida · <b>${st.kills}</b> abates · <b>${st.deaths}</b> mortes`;
+  }
   update(hero, time) {
+    const dead = !hero.alive && hero.respawnAt > hero.t; this.msg.classList.toggle('on', dead); if (dead) this.msg.textContent = 'VETOR ABATIDO — retornando em ' + Math.ceil(hero.respawnAt - hero.t) + 's';
     const s = Math.floor(time); this.timer.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     this.hp.style.width = (100 * hero.hp / hero.maxHp) + '%'; this.hpTxt.textContent = Math.ceil(hero.hp) + ' / ' + hero.maxHp; this.en.style.width = hero.energy + '%'; this.marks.textContent = hero.marksApplied;
     for (const id in this.btn) {

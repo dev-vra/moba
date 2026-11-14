@@ -27,7 +27,7 @@ export class Input {
     });
     addEventListener('pointerup', (e) => { if (e.button === 0) this.mouseBasic = false; if (e.button === 2) this.rmb = false; });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
-    dom.addEventListener('wheel', (e) => { rig.distGoal = THREE.MathUtils.clamp(rig.distGoal + Math.sign(e.deltaY) * 3, 28, 56); }, { passive: true });
+    dom.addEventListener('wheel', (e) => { rig.distGoal = THREE.MathUtils.clamp(rig.distGoal + Math.sign(e.deltaY) * 3, 34, 66); }, { passive: true });
   }
   heroPos = null;
   mouseDir() { if (!this.aimPoint || !this.heroPos || this.touch) return null; const d = this.aimPoint.clone().sub(this.heroPos); d.y = 0; const m = d.length(); return m > 0.3 ? { dir: d.normalize(), mag: m } : null; }
