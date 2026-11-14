@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Bar } from './vfx.js';
 import { clamp, laneFrame } from '../core/util.js';
+import { makeAnimated } from './unitAnims.js';
 import { inkHeavy } from '../render/ink.js';
 
 const PI = Math.PI, _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
@@ -210,12 +211,13 @@ export class Unit {
     this.dir = team === 'axiom' ? 1 : -1; this.yaw = team === 'vessari' ? Math.atan2(-x, -(z - (camp?.c.z ?? 0))) : this.dir * PI / 2;
     this.cd = Math.random() * 0.5; this.atkT = -1; this.swing = 0; this.think = Math.random() * 0.3; this.phase = Math.random() * 6; this.seed = Math.random() * 10;
     this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.flashT = 0; this.deadT = 0; this.spawnT = 0.5;
-    const g = this.g = model(kind, look); this.p = {}; this.meshes = [];
-    g.traverse((o) => { if (o.name) this.p[o.name] = o; if (o.isMesh) this.meshes.push(o); }); this.mat = this.meshes[0].material;
+    this.anim = makeAnimated(kind, look);                                     // modelo animado (Quaternius) se houver; senão o de código
+    const g = this.g = this.anim ? this.anim.root : model(kind, look); this.p = {}; this.meshes = [];
+    g.traverse((o) => { if (o.name) this.p[o.name] = o; if (o.isMesh) this.meshes.push(o); }); this.mat = this.meshes[0].material; this.mats = this.meshes.map((m) => m.material);
     g.position.copy(this.pos); g.rotation.y = this.yaw; game.scene.add(inkHeavy(g)); this.baseScale = g.scale.x;
     this.bar = new Bar(game.scene, K.big ? 3.2 : kind === 'eco' ? 1.9 : 1.5, BAR_COL[team === 'axiom' ? 'ally' : team === 'ekoo' ? 'enemy' : 'neutral'], 0.17);
   }
-  hurt(dmg, src) { this.flashT = 0.07; for (const m of this.meshes) m.material = FLASH; if (this.camp) { this.aggro = src; this.camp.lastHit = src; } }
+  hurt(dmg, src) { if (this.anim && this.atkT < 0 && Math.random() < 0.2) this.anim.act('hit'); this.flashT = 0.07; for (const m of this.meshes) m.material = FLASH; if (this.camp) { this.aggro = src; this.camp.lastHit = src; } }
   die(src) { this.killer = src; this.bar.g.visible = false; if (this.camp) this.camp.lastHit = src; }
   pick(g) {
     if (this.camp) {
@@ -240,7 +242,13 @@ export class Unit {
   }
   update(dt, g) {
     const K = this.K, P = this.p, G = this.g;
-    if (this.flashT > 0 && (this.flashT -= dt) <= 0) for (const m of this.meshes) m.material = this.mat;
+    if (this.flashT > 0 && (this.flashT -= dt) <= 0) this.meshes.forEach((m, i) => { m.material = this.mats[i]; });
+    if (this.anim && !this.alive) {                                // animado: clip de morte, depois afunda
+      const t = this.deadT += dt; if (t === dt) this.anim.act('death', { force: true }); this.anim.update(dt);
+      if (t > 1.1) G.position.y = -(t - 1.1) * 1.6;
+      if (t > 2.2) { g.scene.remove(G); g.scene.remove(this.bar.g); this.gone = true; }
+      return;
+    }
     if (!this.alive) {                                             // collapse, sink, vanish
       const t = this.deadT += dt, k = Math.min(1, t * 2.4);
       if (K.fly) { G.position.y = -Math.min(1.9, t * t * 9); G.rotation.z += dt * 7; G.rotation.x = k * 0.6; }
@@ -275,6 +283,17 @@ export class Unit {
     if (moving) { const sp = K.speed * slow * dt; this.pos.x += mx * sp; this.pos.z += mz * sp; }
     this.spawnT = Math.max(0, this.spawnT - dt); this.swing = Math.max(0, this.swing - dt * 4);
 
+    if (this.anim) {                                               // ---- animação por clips ----
+      const A = this.anim, t = g.t + this.seed;
+      G.position.set(this.pos.x, 0, this.pos.z); G.rotation.set(0, this.yaw, 0); G.scale.setScalar(this.baseScale * (1 - this.spawnT * 1.2));
+      if (this.atkT >= 0 && !this.atkAnim) { this.atkAnim = true; A.act('attack', { force: true, speed: Math.max(1, 0.9 / K.wind) }); }
+      if (this.atkT < 0) this.atkAnim = false;
+      if (this.atkT < 0) A.act(moving ? 'move' : 'idle', { speed: moving ? slow * Math.min(1.4, K.speed / 4.3) : 1 });
+      const body = this.p.body;
+      if (A.A.hover) body.position.y = Math.sin(t * 3) * 0.15;
+      if (A.A.lunge) { const w = this.atkT >= 0 ? 1 - this.atkT / K.wind : 0; body.position.z = -w * 0.4 + this.swing * 1.2; body.scale.setScalar(1 + this.swing * 0.08); }
+      A.update(dt); this.bar.set(this.pos, K.barY, this.hp / this.maxHp); return;
+    }
     // ---- procedural animation ----
     const t = g.t + this.seed, wind = this.atkT >= 0 ? 1 - this.atkT / K.wind : 0, sw = this.swing;
     if (moving) this.phase += K.speed * slow * dt * 2.3; const st = moving ? Math.sin(this.phase) * 0.75 : 0;
