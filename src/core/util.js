@@ -102,8 +102,8 @@ export const BRUSH = [];
 for (const s of [-1, 1]) for (const m of [-1, 1]) BRUSH.push({ x: m * 9, z: s * 5.0, r: 2.7 }, { x: m * 21.7, z: s * 11, r: 2.9 }, { x: m * 41, z: s * 9.5, r: 2.9 }, { x: m * 16.5, z: s * 25, r: 2.8 }, { x: m * 46, z: s * 22, r: 3.1 });
 export function inBrush(x, z) { for (let i = 0; i < BRUSH.length; i++) { const b = BRUSH[i]; if ((x - b.x) ** 2 + (z - b.z) ** 2 < b.r * b.r) return i; } return -1; }
 const laneLim = (x) => { const ax = Math.abs(x); return ax > 54 ? 12.5 : lerp(5.6 * widen(x), 12.5, smooth(50, 54, ax)); };
-// distance to the walkable area (<= 0 inside). `out` receives the nearest walkable point.
-export function navDist(x, z, out) {
+// LAYOUT: corredores desenhados (lanes, trilhas, camps). Usado só para posicionar decoração e achatar o terreno.
+export function layoutDist(x, z, out) {
   const cx = clamp(x, -73.5, 73.5), lim = laneLim(cx), cz = clamp(z, -lim, lim);
   let best = Math.hypot(x - cx, z - cz), bx = cx, bz = cz;
   const test = (px, pz, r) => {
@@ -119,6 +119,34 @@ export function navDist(x, z, out) {
   if (out) { out.x = bx; out.z = bz; }
   return best;
 }
+// ---- NAVEGAÇÃO (mundo aberto): anda-se em quase todo o mapa; só o entorno dos objetos colide ----
+export const OBST = [];                         // { x, z, r }
+const CELL = 8, GRID = new Map(); let gridN = -1;
+export function addObst(x, z, r) { OBST.push({ x, z, r }); }
+function grid() {
+  if (gridN === OBST.length) return; GRID.clear(); gridN = OBST.length;
+  for (const o of OBST) for (let cx = Math.floor((o.x - o.r) / CELL); cx <= Math.floor((o.x + o.r) / CELL); cx++) for (let cz = Math.floor((o.z - o.r) / CELL); cz <= Math.floor((o.z + o.r) / CELL); cz++) {
+    const k = cx * 1000 + cz; if (!GRID.has(k)) GRID.set(k, []); GRID.get(k).push(o);
+  }
+}
+const MAP_X = 52, MAP_Z = 59.5;                 // área aberta = entre as bordas externas das lanes laterais; bases só pelos corredores
+// distância até o chão andável (<= 0 dentro). `out` recebe o ponto andável mais próximo.
+// andável = (retângulo aberto ∪ corredores desenhados) − obstáculos
+export function navDist(x, z, out) {
+  const ox = clamp(x, -MAP_X, MAP_X), oz = clamp(z, -MAP_Z, MAP_Z), dBox = Math.hypot(x - ox, z - oz);
+  if (dBox > 0) {
+    const o2 = { x: 0, z: 0 }, dL = layoutDist(x, z, o2);
+    if (dL <= 0) { if (out) { out.x = x; out.z = z; } return dL; }
+    if (dL < dBox) { if (out) { out.x = o2.x; out.z = o2.z; } return dL; }
+    if (out) { out.x = ox; out.z = oz; } return dBox;
+  }
+  let bx = x, bz = z;
+  grid(); const list = GRID.get(Math.floor(x / CELL) * 1000 + Math.floor(z / CELL));
+  let pen = -1;                                 // dentro de algum obstáculo? (maior penetração)
+  if (list) for (const o of list) { const dx = x - o.x, dz = z - o.z, l = Math.hypot(dx, dz), p = o.r - l; if (p > pen) { pen = p; if (p > 0) { bx = o.x + (dx / (l || 1)) * o.r; bz = o.z + (dz / (l || 1)) * o.r; } } }
+  if (pen > 0) { if (out) { out.x = bx; out.z = bz; } return pen; }
+  if (out) { out.x = x; out.z = z; } return Math.min(-0.01, pen);
+}
 const _np = { x: 0, z: 0 };
 export function clampWalk(p) { if (navDist(p.x, p.z, _np) > 0) { p.x = _np.x; p.z = _np.z; } return p; }
 
@@ -128,7 +156,7 @@ export function heightAt(x, z) {
   let h = (fbm(x * 0.07 + 5, z * 0.07) - 0.5) * 2.6;
   h += smooth(64, 86, az) * 9 * (0.6 + 0.4 * noise(x * 0.03, z * 0.03 + 9));
   h += smooth(98, 110, ax) * 8;
-  const flat = Math.max(1 - smooth(17, 32, az), 1 - smooth(1.5, 8, navDist(x, z)), smooth(52, 62, ax) * (1 - smooth(24, 36, az)) * (1 - smooth(98, 106, ax)));
+  const flat = Math.max(1 - smooth(17, 32, az), 1 - smooth(1.5, 8, layoutDist(x, z)), smooth(52, 62, ax) * (1 - smooth(24, 36, az)) * (1 - smooth(98, 106, ax)));
   return h * (1 - flat);
 }
 

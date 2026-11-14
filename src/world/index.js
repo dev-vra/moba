@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { M, Batch, glowC, CYAN, AMBER } from '../core/mats.js';
 import { T } from '../core/tex.js';
-import { rng, heightAt, smooth, lerp, noise, navDist, CAMPS, BRUSH, BASE_X, TOWER_X, CORE_X } from '../core/util.js';
+import { rng, heightAt, smooth, lerp, noise, layoutDist, addObst, CAMPS, BRUSH, BASE_X, TOWER_X, CORE_X } from '../core/util.js';
 import { buildGround, FARMS } from './ground.js';
 import * as P from './props.js';
 import { axiomBase, ekooBase } from './bases.js';
@@ -52,9 +52,13 @@ export function buildWorld(scene, renderer, quality) {
   const H = heightAt;
   // Layout: a town block (|x| < 16) and outer blocks (|x| > 27) wall the lane off from the jungle;
   // the gaps at |x| ~ 22 are the jungle trail mouths.
+  for (const [x, z, r] of [[-13, -12.5, 3.6], [8.5, -19.5, 3.3], [-18.5, -19, 2.6], [13, 19, 3], [-7, 22, 2.4]]) addObst(x, z, r + 0.3);   // colisão rente aos silos
   P.silo(b, R, -13, -12.5, { r: 3.6, h: 13 }); P.silo(b, R, 8.5, -19.5, { r: 3.3, h: 11.5, tint: 0xcbbfb0 }); P.silo(b, R, -18.5, -19, { r: 2.6, h: 9, tint: 0xc4b6a2 });   // afastados do rio
   P.silo(b, R, 13, 19, { r: 3, h: 10.5, tint: 0xd0c2b4 }); P.silo(b, R, -7, 22, { r: 2.4, h: 8 });
   P.beam(b, M.rust, [-7, 12.6, -13.5], [0.5, 11.2, -17], 0.5, 0x8a6a54, 0.7);      // conveyor between silos
+  for (const [x, z, ry, len, wid] of [[10, -11.5, 0.06, 11, 6], [-9, 13.5, 0.05, 13, 6], [-31.5, -13, -0.06, 9, 6], [31.5, 13.5, -0.06, 9, 6], [31.5, -14, 0.08, 9, 5], [-31.5, 14, 0.05, 9, 5]])
+    for (let u = -len / 2 + wid / 2; u <= len / 2 - wid / 2 + 0.01; u += wid / 2.2) addObst(x + Math.cos(ry) * u, z - Math.sin(ry) * u, wid / 2 + 0.2);   // estufa = fileira de círculos
+  addObst(10, 13.5, 2.4);                                                            // colheitadeira
   P.greenhouse(b, g, R, 10, -11.5, 0.06, { len: 11 }); P.greenhouse(b, g, R, -9, 13.5, 0.05, { len: 13 });
   P.greenhouse(b, g, R, -31.5, -13, -0.06, { len: 9, ruined: true }); P.greenhouse(b, g, R, 31.5, 13.5, -0.06, { len: 9, ruined: true });
   P.greenhouse(b, g, R, 31.5, -14, 0.08, { len: 9, wid: 5 }); P.greenhouse(b, g, R, -31.5, 14, 0.05, { len: 9, wid: 5, ruined: true });
@@ -73,11 +77,12 @@ export function buildWorld(scene, renderer, quality) {
     P.fence(b, R, a[0], a[1], e[0], e[1]);
     for (let i = 0; i < 3; i++) { const [hx, hz] = pt((R() - 0.5) * f.w, (R() - 0.5) * f.d); P.hay(b, R, hx, H(hx, hz), hz); }
   }
-  const off = (x, z, m) => navDist(x, z) > m;                                        // keep props out of walkable ground
+  const off = (x, z, m) => layoutDist(x, z) > m;                                        // keep props out of walkable ground
   const inFarmP = (x, z) => FARMS.some((f) => Math.abs(x - f.x) < f.w / 2 + 1 && Math.abs(z - f.z) < f.d / 2 + 1);
   for (let i = 0; i < 34; i++) { const x = (R() - 0.5) * 96, z = (R() < 0.5 ? -1 : 1) * (7.2 + R() * 4); if (off(x, z, 1.2)) (R() < 0.5 ? P.barrel : P.crate)(b, R, x, 0, z); }
   for (const [x, z] of [[-15, 9.8], [15, -9.2], [28, 9.4], [-33, -9.6], [48, 9.6]]) P.scrap(b, R, x, z, 0.9);
-  const nat = (kind, fallback) => (b2, R2, x, y, z, s, c) => (STYL ? NAT.push({ kind, x, y, z, s }) : fallback(b2, R2, x, y, z, s, c));
+  const OBR = { tree: 0.75, dead: 0.6, rock: 0.75 };   // raio de colisão (só o tronco/pedra, não a copa)
+  const nat = (kind, fallback) => (b2, R2, x, y, z, s, c) => { if (OBR[kind]) addObst(x, z, OBR[kind] * (kind === 'rock' ? s : 1)); return STYL ? NAT.push({ kind, x, y, z, s }) : fallback(b2, R2, x, y, z, s, c); };
   const bush = nat('bush', P.bush), rock = nat('rock', P.rock), deadTree = nat('dead', P.deadTree), tree = nat('tree', P.tree);
   for (let i = 0; i < 150; i++) {                                                     // open-field scatter
     const x = (R() - 0.5) * 190, z = (R() < 0.5 ? -1 : 1) * (7.5 + R() * 60), t = smooth(-60, 60, x);
@@ -89,15 +94,15 @@ export function buildWorld(scene, renderer, quality) {
   }
   // ---------- the jungle: overgrowth walls along the trails, Vessari rifts at the camps ----------
   for (let i = 0, n = 0; n < 210 && i < 5000; i++) {
-    const x = (R() - 0.5) * 100, z = (R() < 0.5 ? -1 : 1) * (19 + R() * 44), d = navDist(x, z);
+    const x = (R() - 0.5) * 100, z = (R() < 0.5 ? -1 : 1) * (19 + R() * 44), d = layoutDist(x, z);
     if (d < 2.2 || d > 15 || inFarmP(x, z) || (Math.abs(z) < 25 && Math.abs(x) < 17) || (Math.abs(x) > 27 && Math.abs(z) < 19)) continue;
-    if (navDist(x + 1.3, z - 1.9) < 1 || navDist(x + 2.8, z - 4.1) < 1 || navDist(x + 4, z - 5.8) < 0.5) continue;   // never between the camera and walkable ground
+    if (layoutDist(x + 1.3, z - 1.9) < 1 || layoutDist(x + 2.8, z - 4.1) < 1 || layoutDist(x + 4, z - 5.8) < 0.5) continue;   // never between the camera and walkable ground
     tree(b, R, x, H(x, z), z, 0.9 + R() * 0.7); n++;
     if (R() < 0.7) bush(b, R, x + (R() - 0.5) * 4, H(x, z), z + (R() - 0.5) * 4, 0.9 + R(), 0x1c3018);
     if (R() < 0.3) rock(b, R, x + 2, H(x + 2, z), z + 1, 1 + R() * 1.6, 0xb8b4b0);
   }
   for (const c of CAMPS) {
-    if (!c.rift) { for (let i = 0; i < 7; i++) { const a = R() * 6.28, d = c.r + 0.6 + R() * 2; P.rock(b, R, c.x + Math.cos(a) * d, 0, c.z + Math.sin(a) * d, 0.9 + R() * 1.2, 0x8a8494); } continue; }
+    if (!c.rift) { for (let i = 0; i < 7; i++) { const a = R() * 6.28, d = c.r + 0.6 + R() * 2; { const rx = c.x + Math.cos(a) * d, rz = c.z + Math.sin(a) * d, rs = 0.9 + R() * 1.2; addObst(rx, rz, 0.5 * rs); P.rock(b, R, rx, 0, rz, rs, 0x8a8494); } } continue; }
     const fx0 = c.x, fz0 = c.z + c.side * 5.2;                                         // rift sits at the back of the clearing
     for (let i = 0; i < 9; i++) {                                                     // jagged dark shards cradling the rift
       const a = (i / 8 - 0.5) * 2.6, r = 2.6 + (i % 2) * 0.7, hgt = 2.2 + Math.cos(a) * 2.4 + (i % 3) * 0.5;
@@ -150,7 +155,7 @@ export function buildWorld(scene, renderer, quality) {
   for (let k = 0; ng < NG && k < NG * 6; k++) {
     const x = (R() - 0.5) * 204, z = (R() - 0.5) * 150, t = smooth(-60, 60, x);
     if (Math.abs(z) < 6.6 + R() * 1.2 || (x < -54 && Math.abs(z) < 23.5)) continue;
-    if (navDist(x, z) < 0.6 && R() < 0.9) continue;                                                     // trails / camps are worn bare
+    if (layoutDist(x, z) < 0.6 && R() < 0.9) continue;                                                     // trails / camps are worn bare
     if (((x - BASE_X - 6) / 34) ** 2 + (z / 25) ** 2 < 1 && R() < 0.93) continue;                       // EKOO yard is bare
     if (noise(x * 0.07, z * 0.07) + smooth(-20, 80, x) * 0.22 > 0.6 && R() < 0.8) continue;           // dry patches
     if (inFarm(x, z)) continue;

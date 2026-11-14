@@ -2,7 +2,7 @@
 // Recebe as posições que o index.js gerava para o procedural (layout de gameplay intacto).
 import * as THREE from 'three';
 import { propLoader } from '../core/polyprops.js';
-import { rng, heightAt, navDist } from '../core/util.js';
+import { rng, heightAt, layoutDist } from '../core/util.js';
 import { seeThrough } from '../render/seethrough.js';
 
 const T = (...a) => a;
@@ -44,7 +44,7 @@ export async function buildNature(scene, renderer, spots, zones = []) {
     const tufts = p.bare ? 0 : p.kind === 'tree' ? 3 : p.kind === 'bush' ? 2 : 1;
     for (let i = 0; i < tufts; i++) {
       const x = p.x + (R() - 0.5) * 5, z = p.z + (R() - 0.5) * 5;
-      if (navDist(x, z) > 0.6) add(R() < 0.6 ? 'flower' : 'pebble', x, heightAt(x, z), z, 0.7 + R() * 0.6);
+      if (layoutDist(x, z) > 0.6) add(R() < 0.6 ? 'flower' : 'pebble', x, heightAt(x, z), z, 0.7 + R() * 0.6);
     }
   }
   const loader = propLoader(), q = [];

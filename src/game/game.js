@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { Unit } from './units.js';
 import { Tower } from './towers.js';
 import { C_AMBER, C_CYAN, C_VIOLET, C_WHITE } from './vfx.js';
-import { CAMPS, BLOCKERS, clamp, widen, inBrush, LANES, LANE_IDS, laneFrame } from '../core/util.js';
+import { CAMPS, BLOCKERS, clamp, widen, inBrush, LANES, LANE_IDS, laneFrame, clampWalk } from '../core/util.js';
 import { REWARD } from './items.js';
 
 export const TEAM_COL = { axiom: C_CYAN, ekoo: C_AMBER, vessari: C_VIOLET };
@@ -218,6 +218,14 @@ export class Game {
         if (a.laneId === 'mid' || !a.laneId) { const lim = 5.4 * widen(a.pos.x); a.pos.z = clamp(a.pos.z, -lim, lim); }
         else { const f = laneFrame(a.laneId, a.pos.x, a.pos.z, 1), lim = 5.2; if (Math.abs(f.off) > lim) { const k = f.off - Math.sign(f.off) * lim; a.pos.x -= f.nx * k; a.pos.z -= f.nz * k; } }
       }
+    }
+    // heróis não se empilham (bots travavam uns nos outros); unidades abrem espaço para heróis
+    const hs = this.heroes.filter((h) => h.alive && !h.busy);
+    for (let i = 0; i < hs.length; i++) {
+      const a = hs[i];
+      for (let j = i + 1; j < hs.length; j++) { const b = hs[j], dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz) || 0.01, min = a.radius + b.radius; if (d < min) { const k = (min - d) * 0.5 / d; a.pos.x -= dx * k; a.pos.z -= dz * k; b.pos.x += dx * k; b.pos.z += dz * k; } }
+      for (const u of us) { const dx = u.pos.x - a.pos.x, dz = u.pos.z - a.pos.z, d = Math.hypot(dx, dz) || 0.01, min = a.radius + u.radius - 0.1; if (d < min) { const k = (min - d) / d; u.pos.x += dx * k; u.pos.z += dz * k; } }
+      clampWalk(a.pos);
     }
     if (this.ents.some((e) => e.gone)) this.ents = this.ents.filter((e) => !e.gone);
   }

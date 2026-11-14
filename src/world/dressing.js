@@ -2,7 +2,7 @@
 // AXIOM = x<0 (limpo/tech), EKOO = x>0 (sucata/rádio), centro = Cidade-Celeiro, fendas = Vessari.
 // Escala de leitura: câmera a ~48u — itens pequenos ganham exagero p/ não virar pontinho.
 import { loadProp, propLoader } from '../core/polyprops.js';
-import { rng, heightAt, navDist, CAMPS, BASE_X, TOWER_X } from '../core/util.js';
+import { rng, heightAt, layoutDist, CAMPS, BASE_X, TOWER_X } from '../core/util.js';
 
 const READ = 1.7;   // pequenos (≤0.6m)
 const MED = 1.3;    // médios (barris, caixas, gerador)
@@ -27,7 +27,7 @@ export async function dress(scene, renderer) {
   const R = rng(7331), jobs = [];
   const pick = (list) => list[Math.floor(R() * list.length)];
   const place = (entry, x, z, minNav = 1.4) => {
-    if (navDist(x, z) <= minNav) return;   // nunca bloqueia chão andável
+    if (layoutDist(x, z) <= minNav) return;   // nunca bloqueia chão andável
     const [g, id, s] = entry;
     jobs.push(loadProp(g, id, { scale: s * (0.9 + R() * 0.2) }).then((o) => {
       o.position.set(x, heightAt(x, z), z); o.rotation.y = R() * Math.PI * 2; scene.add(o);
@@ -37,7 +37,7 @@ export async function dress(scene, renderer) {
   const cluster = (list, cx, cz, n, r = 2.2) => {
     for (let i = 0; i < n; i++) for (let k = 0; k < 8; k++) {
       const a = R() * 6.28, d = R() * r * (1 + k * 0.25), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
-      if (navDist(x, z) > 1.4) { place(pick(list), x, z); break; }
+      if (layoutDist(x, z) > 1.4) { place(pick(list), x, z); break; }
     }
   };
 
