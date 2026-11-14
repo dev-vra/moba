@@ -5,6 +5,7 @@ import { Unit, UMAT } from './units.js';
 import { Tower } from './towers.js';
 import { C_AMBER, C_CYAN, C_VIOLET, C_WHITE } from './vfx.js';
 import { CAMPS, clamp, widen } from '../core/util.js';
+import { REWARD } from './items.js';
 
 const TEAM_COL = { axiom: C_CYAN, ekoo: C_AMBER, vessari: C_VIOLET };
 const WAVE_EVERY = 25, CAMP_RESPAWN = 60, MAX_UNITS = 64;
@@ -24,7 +25,7 @@ class Camp {                                   // 3 Eco Menor guarding a rift; w
 
 export class Game {
   constructor(scene, vfx, hud) {
-    this.scene = scene; this.vfx = vfx; this.hud = hud; this.ents = []; this.t = 0; this.timers = []; this.shots = []; this.over = null; this.wave = 0; this.nextWave = 3; this.kills = 0;
+    this.scene = scene; this.vfx = vfx; this.hud = hud; this.ents = []; this.t = 0; this.timers = []; this.shots = []; this.over = null; this.wave = 0; this.nextWave = 3; this.kills = 0; this.score = [0, 0, 0];
     const sg = new THREE.OctahedronGeometry(0.22, 0); sg.scale(1, 1, 2.6);
     this.shotPool = Array.from({ length: 28 }, () => { const m = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ color: 0xffffff })); m.visible = false; m.layers.set(1); scene.add(m); return m; });
   }
@@ -56,16 +57,21 @@ export class Game {
     let dmg = amount, shielded = false; const col = color || TEAM_COL[src.team] || C_WHITE;
     if (src.isHero && target.markUntil > this.t) dmg *= 1.25;
     if (crit) dmg *= 2;
-    if (target.isTower && src.isHero) { dmg *= 0.45; if (!this.alliesNear(src.team, target.pos, 11)) { dmg *= 0.35; shielded = true; } }   // plated structure; shrugs off a lone hero
+    if (target.isHero) dmg *= 1 - (target.armor || 0);
+    if (target.isTower && src.isHero) { dmg *= 0.38 * (src.towerMul || 1); if (!this.alliesNear(src.team, target.pos, 11)) { dmg *= 0.35; shielded = true; } }   // plated structure; shrugs off a lone hero
     dmg = Math.round(dmg * (0.94 + Math.random() * 0.12)); target.hp -= dmg; target.hurt?.(dmg, src, heavy || crit);
     if (src.isHero) {
+      if (src.steal && !target.isTower) src.hp = Math.min(src.maxHp, src.hp + dmg * src.steal);
       this.vfx.hit(target.pos, col, heavy || crit); this.vfx.number(target.pos, (crit ? '✦ ' : '') + dmg, crit ? 'crit' : '');
       if (shielded && Math.random() < 0.35) this.vfx.number(target.pos, 'TORRE PROTEGIDA — traga minions', 'info');
     } else if (target.isHero) { this.vfx.sparks({ x: target.pos.x, y: 1.6, z: target.pos.z }, 8, { color: col, speed: 7 }); this.vfx.number(target.pos, '-' + dmg, 'hurt'); this.vfx.shake(heavy ? 0.5 : 0.2); }
     else this.vfx.sparks({ x: target.pos.x, y: target.isTower ? 3 : 1.3, z: target.pos.z }, heavy ? 8 : 3, { color: col, speed: 5, life: 0.25, size: 0.4 });
     if (target.hp <= 0) {
       target.hp = 0; target.alive = false; target.die?.(src);
-      if (target.isUnit) { this.vfx.sparks({ x: target.pos.x, y: 1.2, z: target.pos.z }, 16, { color: TEAM_COL[target.team], speed: 8, up: 6, life: 0.6 }); this.vfx.ring(target.pos, { r1: 2.2, color: TEAM_COL[target.team], dur: 0.3, k: 1.6 }); if (src.isHero) { this.kills++; src.onKill?.(target); } }
+      if (target.isUnit) { this.vfx.sparks({ x: target.pos.x, y: 1.2, z: target.pos.z }, 16, { color: TEAM_COL[target.team], speed: 8, up: 6, life: 0.6 }); this.vfx.ring(target.pos, { r1: 2.2, color: TEAM_COL[target.team], dur: 0.3, k: 1.6 }); if (src.isHero) { this.kills++; src.onKill?.(target); }
+        this.score[src.team === 'axiom' ? 0 : src.team === 'ekoo' ? 1 : 2]++;
+        const h = this.hero, rw = REWARD[target.kind];                         // xp for being nearby, gold for the last hit (a share otherwise)
+        if (h && h.alive && rw && target.team !== h.team && Math.hypot(h.pos.x - target.pos.x, h.pos.z - target.pos.z) < 16) { h.gainXp(rw[0]); h.gainGold(src.isHero ? rw[1] : Math.round(rw[1] * 0.3), src.isHero ? target.pos : null); } }
     }
     return dmg;
   }
@@ -91,9 +97,9 @@ export class Game {
   spawnWave() {
     const n = ++this.wave, count = this.ents.filter((e) => e.isUnit && e.alive).length; if (count > MAX_UNITS) return;
     for (const team of ['axiom', 'ekoo']) {
-      const s = team === 'axiom' ? -1 : 1, x0 = s * 57, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
-      [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z, { laneZ: z }));
-      [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z, { laneZ: z }));
+      const s = team === 'axiom' ? -1 : 1, x0 = s * 57, boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
+      [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z, { laneZ: z, boost }));
+      [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z, { laneZ: z, boost }));
       if (team === 'ekoo' && n >= 2) this.spawn(melee, team, x0 + s * 1.5, 0, { laneZ: 0 });            // EKOO out-scales the lane: an idle hero loses
       if (team === 'ekoo' && n >= 4 && n % 2 === 0) this.spawn(ranged, team, x0 + s * 5, 0, { laneZ: 0 });
     }
@@ -105,7 +111,7 @@ export class Game {
     [-1.6, 0, 1.6].forEach((dz, i) => this.spawn('eco', team, to.x - s * i * 1.4, to.z * 0.4 + dz, { laneZ: dz, look: team, boost: 1.1 }));
     if (this.hero) v.number(this.hero.pos, team === this.hero.team ? 'VESSARI CONVERTIDOS — reforço na lane!' : 'VESSARI TOMADOS PELO INIMIGO', 'info');
   }
-  finish(result) { if (this.over) return; this.over = result; this.after(0.8, () => this.hud?.end(result, { time: this.t, kills: this.kills, deaths: this.hero?.deaths ?? 0 })); }
+  finish(result) { if (this.over) return; this.over = result; this.after(0.8, () => this.hud?.end(result, { time: this.t, kills: this.kills, deaths: this.hero?.deaths ?? 0, level: this.hero?.level ?? 1 })); }
 
   update(dt) {
     this.t += dt;

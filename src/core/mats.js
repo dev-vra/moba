@@ -26,8 +26,8 @@ export const M = {
   rock: std('rock', 2.4),
   wood: plain({ map: T.wood, roughness: 0.85 }),
   tarp: plain({ map: T.tarp, roughness: 0.9, side: THREE.DoubleSide }),
-  glassA: noShadow(new THREE.MeshStandardMaterial({ map: T.glassA, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.3, metalness: 0, envMapIntensity: 1.2, vertexColors: true })),
-  glassB: noShadow(new THREE.MeshStandardMaterial({ map: T.glassB, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.3, metalness: 0, envMapIntensity: 1.2, vertexColors: true })),
+  glassA: noShadow(new THREE.MeshStandardMaterial({ map: T.glassA, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.55, metalness: 0, envMapIntensity: 0.9, vertexColors: true })),
+  glassB: noShadow(new THREE.MeshStandardMaterial({ map: T.glassB, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.55, metalness: 0, envMapIntensity: 0.9, vertexColors: true })),
   glow: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })),
   glowSoft: noShadow(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })),
 };

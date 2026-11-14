@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { clampWalk, SPAWN_X } from '../core/util.js';
 import { loadVetor, HERO_SCALE } from './vetorModel.js';
 import { Bar, Indicator, C_CYAN, C_WHITE } from './vfx.js';
+import { ITEMS, BASE, MAX_LEVEL, ULT_LEVEL, SLOTS, xpNeed } from './items.js';
 
 export const SKILLS = {
   basic: { name: 'CORTE DUPLO', desc: 'Combo de 3 golpes; o terceiro é um corte giratório em área.', cd: 0 },
@@ -30,6 +31,7 @@ export class Hero {
     Object.assign(this, { game, scene, rig, input, vfx, isHero: true, team: 'axiom', radius: 0.8, alive: true, targetable: true });
     this.pos = new THREE.Vector3(-SPAWN_X, 0, 0); this.yaw = Math.PI / 2; this.maxHp = this.hp = 2200; this.energy = 100; this.atk = 118; this.speed = 7.4; this.t = 0; this.marksApplied = 0;
     this.skills = {}; for (const k in SKILLS) this.skills[k] = { ...SKILLS[k], ready: 0 };
+    this.level = 1; this.xp = 0; this.gold = 300; this.items = []; this.recalc();
     const V = this.v = await loadVetor(); this.root = V.root; V.model.position.y = 0.2 * HERO_SCALE; scene.add(this.root);
     // locomotion
     const A = V.actions; this.loco = 'idle';
@@ -57,10 +59,33 @@ export class Hero {
     if (this.act) { this.act.action.fadeOut(0.2); this.act = null; } this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3 }); this.vfx.sparks({ x: this.pos.x, y: 1, z: this.pos.z }, 30, { speed: 6, up: 9, life: 0.8, grav: 5 }); this.rig.snap(this.pos.x, this.pos.z);
   }
   onKill() { this.energy = Math.min(100, this.energy + 4); }
+  // ---------------- progression: level, gold, items ----------------
+  recalc() {
+    const st = { atk: 0, hp: 0, speed: 0, armor: 0, crit: 0, steal: 0, haste: 0, eregen: 0, tower: 0 };
+    for (const it of this.items) for (const k in it.stats) st[k] += it.stats[k];
+    const old = this.maxHp || BASE.hp, L = this.level - 1;
+    this.maxHp = Math.round(BASE.hp + BASE.hpLvl * L + st.hp); this.hp = Math.min(this.maxHp, (this.hp ?? this.maxHp) + Math.max(0, this.maxHp - old));
+    this.atk = BASE.atk + BASE.atkLvl * L + st.atk; this.speed = BASE.speed * (1 + st.speed); this.eregen = BASE.eregen + st.eregen;
+    this.armor = Math.min(0.6, st.armor); this.crit = st.crit; this.steal = st.steal; this.haste = Math.min(0.45, st.haste); this.towerMul = 1 + st.tower;
+  }
+  gainXp(n) {
+    if (this.level >= MAX_LEVEL) return; this.xp += n;
+    while (this.level < MAX_LEVEL && this.xp >= xpNeed(this.level)) {
+      this.xp -= xpNeed(this.level); this.level++; this.recalc(); this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.2); this.leveledAt = this.t;
+      this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3.4 }); this.vfx.ring(this.pos, { r0: 0.4, r1: 2.6, dur: 0.9, color: C_WHITE, k: 2.4 }); this.vfx.sparks({ x: this.pos.x, y: 0.5, z: this.pos.z }, 40, { speed: 4, up: 13, life: 1, grav: 6 });
+      this.vfx.number(this.pos, this.level === ULT_LEVEL ? 'NÍVEL ' + this.level + ' — ULTIMATE LIBERADA' : 'NÍVEL ' + this.level, 'level');
+    }
+    if (this.level >= MAX_LEVEL) this.xp = 0;
+  }
+  gainGold(n, pos) { this.gold += n; if (pos) this.vfx.number(pos, '+' + n, 'gold'); }
+  get atBase() { return Math.hypot(this.pos.x - this.spawnPos.x, this.pos.z - this.spawnPos.z) < 7; }
+  canBuy(it) { return this.items.includes(it) ? 'owned' : this.items.length >= SLOTS ? 'full' : this.gold < it.cost ? 'gold' : !(this.atBase || !this.alive) ? 'base' : null; }
+  buy(it) { if (this.canBuy(it)) return false; this.gold -= it.cost; this.items.push(it); this.recalc(); this.vfx.ring(this.pos, { r1: 3, dur: 0.4, k: 2.4 }); return true; }
+
   get dirV() { return _d.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)).clone(); }
   face(dir) { this.yaw = Math.atan2(dir.x, dir.z); }
-  can(id) { const s = this.skills[id]; return this.alive && !this.ult && this.t >= s.ready && this.energy >= (s.cost || 0); }
-  spend(id) { const s = this.skills[id]; s.ready = this.t + s.cd; this.energy -= s.cost || 0; }
+  can(id) { const s = this.skills[id]; return this.alive && !this.ult && this.t >= s.ready && this.energy >= (s.cost || 0) && !(id === 'ult' && this.level < ULT_LEVEL); }
+  spend(id) { const s = this.skills[id]; s.cdNow = s.cd * (1 - this.haste); s.ready = this.t + s.cdNow; this.energy -= s.cost || 0; }
 
   // one-shot animation on top of locomotion
   play(name, { t0 = 0, t1 = null, dur = null, fade = 0.06 } = {}) {
@@ -88,7 +113,7 @@ export class Hero {
     this.vfx.slash(this.pos, this.yaw, { r: a.r, dir: a.dir, dur: a.heavy ? 0.3 : 0.2, tilt: a.heavy ? 0 : a.dir * 0.22, k: a.heavy ? 3.6 : 2.8, y: 1.35 });
     if (a.heavy) { this.vfx.slash(this.pos, this.yaw + Math.PI, { r: a.r, dir: a.dir, dur: 0.3, k: 3.2, y: 1.35 }); this.vfx.ring(this.pos, { r1: a.r, dur: 0.3, k: 1.4 }); }
     for (const e of hits) {
-      const marked = e.markUntil > g.t; g.damage(this, e, this.atk * a.mul, { heavy: a.heavy });
+      const marked = e.markUntil > g.t; g.damage(this, e, this.atk * a.mul, { heavy: a.heavy, crit: Math.random() < this.crit });
       if (marked) { this.energy = Math.min(100, this.energy + 8); e.markUntil = 0; }
     }
     if (hits.length) this.energy = Math.min(100, this.energy + 2);
@@ -111,7 +136,8 @@ export class Hero {
     return this.dirV;
   }
   cast(ev) {
-    const id = ev.skill; if (id === 'taunt') { if (!this.act && this.lock <= 0) { this.play('taunt', { fade: 0.15 }); this.lock = 0.4; } return; }
+    const id = ev.skill; if (id === 'ult' && this.level < ULT_LEVEL) { if (this.t > (this.warnT || 0)) { this.warnT = this.t + 1.5; this.vfx.number(this.pos, 'ULTIMATE NO NÍVEL ' + ULT_LEVEL, 'info'); } return; }
+    if (id === 'taunt') { if (!this.act && this.lock <= 0) { this.play('taunt', { fade: 0.15 }); this.lock = 0.4; } return; }
     if (!this.skills[id] || !this.can(id) || this.dash) return;
     this.ind.hide();
     if (id === 's1') {
@@ -143,7 +169,7 @@ export class Hero {
     this.vfx.sparks({ x: this.pos.x, y: 0.4, z: this.pos.z }, 3, { speed: 3, up: 2, life: 0.3, size: 0.35 });
     if (p >= 1) {
       this.vfx.streak(d.from, d.to, { width: 2.2, dur: 0.4, k: 3 }); this.vfx.streak(d.from, d.to, { width: 0.5, dur: 0.55, k: 5, y: 1.2 });
-      if (d.hit.size) { const s = this.skills.s1; s.ready = this.t + s.cd * 0.5; this.vfx.number(this.pos, 'RECARGA −50%', 'info'); }
+      if (d.hit.size) { const s = this.skills.s1; s.ready = this.t + s.cdNow * 0.5; this.vfx.number(this.pos, 'RECARGA −50%', 'info'); }
       this.dash = null;
     }
   }
@@ -198,7 +224,7 @@ export class Hero {
       if (!this.alive && !g.over && this.t >= this.respawnAt) this.respawn(); return;
     }
     const atBase = Math.hypot(this.pos.x - this.spawnPos.x, this.pos.z - this.spawnPos.z) < 5.5;
-    this.energy = Math.min(100, this.energy + (atBase ? 25 : 5) * dt); this.hp = Math.min(this.maxHp, this.hp + (atBase ? this.maxHp * 0.16 : 5) * dt);
+    this.gold += 2 * dt; this.energy = Math.min(100, this.energy + (atBase ? 25 : this.eregen) * dt); this.hp = Math.min(this.maxHp, this.hp + (atBase ? this.maxHp * 0.16 : 5) * dt);
     for (const ev of inp.events.splice(0)) this.cast(ev);
     if (this.ghostOn && this.ghostUntil <= this.t) this.endGhost();
     // touch aim preview

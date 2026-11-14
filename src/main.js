@@ -20,6 +20,7 @@ const qBtn = document.getElementById('quality');
 qBtn.textContent = 'GRÁFICOS: ' + (quality === 'high' ? 'ALTO' : 'BAIXO');
 qBtn.onclick = () => { localStorage.setItem('ekoo.quality', quality === 'high' ? 'low' : 'high'); q.delete('q'); location.search = q.toString(); };
 let loaded = false; THREE.DefaultLoadingManager.onLoad = () => { loaded = true; };
+const bootbar = document.getElementById('bootbar'); THREE.DefaultLoadingManager.onProgress = (_u, n, total) => { bootbar.style.width = Math.round(8 + 88 * n / total) + '%'; };
 
 const scene = new THREE.Scene();
 const rig = new CameraRig(innerWidth / innerHeight);
@@ -50,7 +51,7 @@ renderer.setAnimationLoop(() => {
   const gdt = (vfx.hitstop > 0 ? dt * 0.06 : dt) * (game.over ? 0.35 : 1); vfx.hitstop -= dt;      // hit-stop on heavy impacts, slow-mo on match end
   game.update(gdt); vfx.update(dt); }
   rig.update(dt);
-  world.update(t, dt, rig.target, rig.dist, rig.camera); hud.update(hero, game.t);
+  world.update(t, dt, rig.target, rig.dist, rig.camera); hud.update(hero, game.t, game, rig, dt);
   post.render();
   if (loaded && scene.environment && ++frames === 3) { document.getElementById('boot').classList.add('off'); window.__ready = true; }
 });

@@ -23,7 +23,7 @@ function unitMat(glow, rim = 0.3) {
   return m;
 }
 export const UMAT = { axiom: unitMat(0x2fe4ff), ekoo: unitMat(0xff9a2e), vessari: unitMat(0xa55cff, 0.5) };
-const FLASH = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.5, 1.5) });
+const FLASH = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.95, 0.95) });   // hit flash (kept under the bloom threshold)
 
 class Parts {
   l = [];

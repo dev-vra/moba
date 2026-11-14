@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { T } from '../core/tex.js';
 
 const ADD = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide };
-export const C_CYAN = new THREE.Color(0x2fe4ff), C_WHITE = new THREE.Color(0xffffff), C_AMBER = new THREE.Color(0xffa23a), C_VIOLET = new THREE.Color(0x9a6bff);
+export const C_CYAN = new THREE.Color(0x12d8ff), C_WHITE = new THREE.Color(0xffffff), C_AMBER = new THREE.Color(0xffa23a), C_VIOLET = new THREE.Color(0x9a6bff);
 
 // sector strip on the XZ plane, centred on +Z; attributes: q = (along arc 0..1, radial 0..1)
 function arcGeo(arc = 2.4, seg = 40, inner = 0.42) {
@@ -23,7 +23,7 @@ const slashMat = () => new THREE.ShaderMaterial({
       float a = smoothstep(0.,.03,d)*exp(-d*4.2);                       // sharp leading edge, fading wake
       float ry = clamp(vq.y,0.,1.);                                      // pow() of a slightly negative interpolant is NaN -> black bloom
       a *= pow(ry,1.6)*(1.-smoothstep(.93,1.,ry))*(1.-smoothstep(.78,1.,uP));
-      vec3 c = mix(uCol, vec3(1.), clamp(pow(ry,7.)*.6+(1.-smoothstep(0.,.1,d))*.35,0.,1.));
+      vec3 c = mix(uCol, vec3(1.), clamp(pow(ry,9.)*.45+(1.-smoothstep(0.,.07,d))*.25,0.,1.));
       gl_FragColor = vec4(c*uK*a, a); }`,
 });
 

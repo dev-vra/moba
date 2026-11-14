@@ -46,7 +46,7 @@ function ekooTower(g) {
 export class Tower {
   constructor(game, team) {
     Object.assign(this, { game, team, isTower: true, alive: true, radius: 2.7, range: 11.5, atk: 185, cdMax: 1.0 });
-    this.pos = new THREE.Vector3(team === 'axiom' ? -TOWER_X : TOWER_X, 0, 0); this.maxHp = this.hp = 7200; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
+    this.pos = new THREE.Vector3(team === 'axiom' ? -TOWER_X : TOWER_X, 0, 0); this.maxHp = this.hp = 11000; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
     const g = this.g = new THREE.Group(); g.position.copy(this.pos); game.scene.add(g);
     this.fx = team === 'axiom' ? axiomTower(g) : ekooTower(g); this.color = team === 'axiom' ? C_CYAN : C_AMBER;
     this.bar = new Bar(game.scene, 4.4, team === 'axiom' ? 0x3fc8ff : 0xff5236, 0.34);

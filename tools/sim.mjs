@@ -7,9 +7,10 @@ const pg = await br.newPage(); await pg.setViewport({ width: 640, height: 360 })
 pg.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 400)));
 pg.on('console', (m) => { if (m.type() === 'error') console.log('[error]', m.text().slice(0, 300)); });
 await pg.goto(`http://localhost:5173/?q=low&grass=0&speed=${speed}`); await pg.waitForFunction('window.__ready', { timeout: 60000 });
-if (bot) await pg.evaluate((mode) => {
-  const g = window.__g, h = g.hero, inp = g.input, rig = g.rig;
+if (bot) await pg.evaluate(async (mode) => {
+  const g = window.__g, h = g.hero, inp = g.input, rig = g.rig, ITEMS = (await import('/src/game/items.js')).ITEMS;
   window.__bot = () => {
+    if (h.atBase || !h.alive) for (const it of ITEMS) h.buy(it);
     if (!h.alive || g.game.over) { inp.stick.set(0, 0); inp.keyBasic = false; return; }
     const G = g.game, low = h.hp < h.maxHp * 0.3, near = G.nearest('axiom', h.pos, 30);
     const wave = G.ents.filter((e) => e.isUnit && e.alive && e.team === 'axiom' && e.lane).reduce((m, e) => Math.max(m, e.pos.x), -60);
@@ -27,7 +28,7 @@ const t0 = Date.now();
 while (Date.now() - t0 < +secs * 1000) {
   await new Promise((r) => setTimeout(r, 5000));
   const s = await pg.evaluate(() => { const G = window.__g.game, h = window.__g.hero, c = (t, f) => G.ents.filter((e) => e.isUnit && e.alive && e.team === t && (f ? f(e) : true)).length;
-    return `t=${G.t.toFixed(0).padStart(3)} towers A:${G.towers[0].hp} E:${G.towers[1].hp} | units A:${c('axiom')} E:${c('ekoo')} V:${c('vessari')} ecoA:${c('axiom', (e) => e.kind === 'eco')} | hero hp:${Math.round(h.hp)} x:${h.pos.x.toFixed(0)} z:${h.pos.z.toFixed(0)} k:${G.kills} d:${h.deaths} | front A:${Math.max(-99, ...G.ents.filter((e) => e.isUnit && e.alive && e.team === 'axiom').map((e) => e.pos.x)).toFixed(0)} | over:${G.over}`; });
+    return `t=${G.t.toFixed(0).padStart(3)} towers A:${G.towers[0].hp} E:${G.towers[1].hp} | units A:${c('axiom')} E:${c('ekoo')} V:${c('vessari')} ecoA:${c('axiom', (e) => e.kind === 'eco')} | hero hp:${Math.round(h.hp)} x:${h.pos.x.toFixed(0)} z:${h.pos.z.toFixed(0)} k:${G.kills} d:${h.deaths} L${h.level} g${Math.floor(h.gold)} it${h.items.length} | front A:${Math.max(-99, ...G.ents.filter((e) => e.isUnit && e.alive && e.team === 'axiom').map((e) => e.pos.x)).toFixed(0)} | over:${G.over}`; });
   console.log(s); if (s.includes('over:victory') || s.includes('over:defeat')) break;
 }
 await br.close();

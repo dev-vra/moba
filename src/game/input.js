@@ -16,7 +16,7 @@ export class Input {
     addEventListener('keydown', (e) => {
       if (e.repeat) return; keys.add(e.code);
       if (KEYS[e.code]) this.cast(KEYS[e.code], this.mouseDir()); if (e.code === 'Space' || e.code === 'KeyJ') this.keyBasic = true;
-      if (e.code === 'KeyB') this.events.push({ skill: 'taunt' });
+      if (e.code === 'KeyT') this.events.push({ skill: 'taunt' });
     });
     addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Space' || e.code === 'KeyJ') this.keyBasic = false; });
     addEventListener('blur', () => { keys.clear(); this.keyBasic = this.mouseBasic = false; });
