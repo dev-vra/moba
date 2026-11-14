@@ -1,10 +1,10 @@
 {
-  "ktx2": false,
+  "ktx2": true,
   "report": [
     {
       "id": "concrete_road_barrier",
       "group": "axiom",
-      "lod0": 531828,
+      "lod0": 857688,
       "tris": 60928,
       "_lod1": 218684,
       "tris_lod1": 24370,
@@ -14,7 +14,7 @@
     {
       "id": "concrete_road_barrier_02",
       "group": "axiom",
-      "lod0": 305756,
+      "lod0": 609176,
       "tris": 23822,
       "_lod1": 113132,
       "tris_lod1": 9528,
@@ -24,7 +24,7 @@
     {
       "id": "exterior_aircon_unit",
       "group": "axiom",
-      "lod0": 481828,
+      "lod0": 1374872,
       "tris": 18986,
       "_lod1": 165144,
       "tris_lod1": 7650,
@@ -34,7 +34,7 @@
     {
       "id": "flood_lights",
       "group": "axiom",
-      "lod0": 1305748,
+      "lod0": 1802688,
       "tris": 76868,
       "_lod1": 662936,
       "tris_lod1": 30747,
@@ -44,7 +44,7 @@
     {
       "id": "power_box_01",
       "group": "axiom",
-      "lod0": 326844,
+      "lod0": 633644,
       "tris": 21272,
       "_lod1": 165964,
       "tris_lod1": 8508,
@@ -54,7 +54,7 @@
     {
       "id": "security_camera_01",
       "group": "axiom",
-      "lod0": 190960,
+      "lod0": 452724,
       "tris": 13571,
       "_lod1": 92504,
       "tris_lod1": 5429,
@@ -64,7 +64,7 @@
     {
       "id": "security_camera_02",
       "group": "axiom",
-      "lod0": 183472,
+      "lod0": 475928,
       "tris": 12477,
       "_lod1": 87696,
       "tris_lod1": 4991,
@@ -74,7 +74,7 @@
     {
       "id": "security_light",
       "group": "axiom",
-      "lod0": 168636,
+      "lod0": 495496,
       "tris": 4668,
       "_lod1": 78856,
       "tris_lod1": 2746,
@@ -84,7 +84,7 @@
     {
       "id": "steel_frame_shelves_03",
       "group": "axiom",
-      "lod0": 189928,
+      "lod0": 781528,
       "tris": 8396,
       "_lod1": 84428,
       "tris_lod1": 3358,
@@ -94,7 +94,7 @@
     {
       "id": "utility_box_01",
       "group": "axiom",
-      "lod0": 112884,
+      "lod0": 435708,
       "tris": 4404,
       "_lod1": 49616,
       "tris_lod1": 1761,
@@ -104,7 +104,7 @@
     {
       "id": "utility_box_02",
       "group": "axiom",
-      "lod0": 134280,
+      "lod0": 452632,
       "tris": 6268,
       "_lod1": 60252,
       "tris_lod1": 2507,
@@ -114,7 +114,7 @@
     {
       "id": "Barrel_01",
       "group": "ekoo",
-      "lod0": 132940,
+      "lod0": 432852,
       "tris": 2682,
       "_lod1": 52184,
       "tris_lod1": 1154,
@@ -124,14 +124,17 @@
     {
       "id": "barrel_03",
       "group": "ekoo",
-      "lod0": 96556,
+      "lod0": 405472,
+      "tris": 1473,
       "_lod1": 39736,
-      "_lod2": 15724
+      "tris_lod1": 1121,
+      "_lod2": 15724,
+      "tris_lod2": 356
     },
     {
       "id": "barrel_stove",
       "group": "ekoo",
-      "lod0": 180860,
+      "lod0": 409052,
       "tris": 9216,
       "_lod1": 73592,
       "tris_lod1": 3686,
@@ -141,7 +144,7 @@
     {
       "id": "caged_hanging_light",
       "group": "ekoo",
-      "lod0": 348384,
+      "lod0": 667452,
       "tris": 22893,
       "_lod1": 158668,
       "tris_lod1": 9156,
@@ -151,7 +154,7 @@
     {
       "id": "Lantern_01",
       "group": "ekoo",
-      "lod0": 414440,
+      "lod0": 743164,
       "tris": 33902,
       "_lod1": 183880,
       "tris_lod1": 14014,
@@ -161,7 +164,7 @@
     {
       "id": "Megaphone_01",
       "group": "ekoo",
-      "lod0": 225896,
+      "lod0": 486512,
       "tris": 15814,
       "_lod1": 103124,
       "tris_lod1": 6414,
@@ -171,7 +174,7 @@
     {
       "id": "metal_jerrycan",
       "group": "ekoo",
-      "lod0": 277196,
+      "lod0": 599312,
       "tris": 20022,
       "_lod1": 114608,
       "tris_lod1": 8008,
@@ -181,7 +184,7 @@
     {
       "id": "old_military_compressor",
       "group": "ekoo",
-      "lod0": 887008,
+      "lod0": 1143896,
       "tris": 79042,
       "_lod1": 429276,
       "tris_lod1": 31770,
@@ -191,7 +194,7 @@
     {
       "id": "old_military_crate",
       "group": "ekoo",
-      "lod0": 288940,
+      "lod0": 625892,
       "tris": 20952,
       "_lod1": 131352,
       "tris_lod1": 8380,
@@ -201,7 +204,7 @@
     {
       "id": "old_tyre",
       "group": "ekoo",
-      "lod0": 127860,
+      "lod0": 415220,
       "tris": 2880,
       "_lod1": 41924,
       "tris_lod1": 1172,
@@ -211,7 +214,7 @@
     {
       "id": "portable_generator",
       "group": "ekoo",
-      "lod0": 455016,
+      "lod0": 746944,
       "tris": 26419,
       "_lod1": 213844,
       "tris_lod1": 10563,
@@ -221,7 +224,7 @@
     {
       "id": "portable_welding_cart",
       "group": "ekoo",
-      "lod0": 359228,
+      "lod0": 630884,
       "tris": 29418,
       "_lod1": 165196,
       "tris_lod1": 11846,
@@ -231,7 +234,7 @@
     {
       "id": "propane_tank",
       "group": "ekoo",
-      "lod0": 132176,
+      "lod0": 465904,
       "tris": 5238,
       "_lod1": 56668,
       "tris_lod1": 2311,
@@ -241,7 +244,7 @@
     {
       "id": "rusted_wheel_rim_01",
       "group": "ekoo",
-      "lod0": 255388,
+      "lod0": 589572,
       "tris": 16440,
       "_lod1": 112680,
       "tris_lod1": 6576,
@@ -251,7 +254,7 @@
     {
       "id": "rusted_wheel_rim_02",
       "group": "ekoo",
-      "lod0": 241848,
+      "lod0": 576368,
       "tris": 15256,
       "_lod1": 108012,
       "tris_lod1": 6102,
@@ -261,7 +264,7 @@
     {
       "id": "small_lpg_tank",
       "group": "ekoo",
-      "lod0": 258144,
+      "lod0": 590316,
       "tris": 15042,
       "_lod1": 103520,
       "tris_lod1": 6016,
@@ -271,7 +274,7 @@
     {
       "id": "stone_fire_pit",
       "group": "ekoo",
-      "lod0": 166944,
+      "lod0": 479804,
       "tris": 3887,
       "_lod1": 60260,
       "tris_lod1": 1868,
@@ -281,7 +284,7 @@
     {
       "id": "trashbag",
       "group": "ekoo",
-      "lod0": 133312,
+      "lod0": 405200,
       "tris": 4482,
       "_lod1": 61384,
       "tris_lod1": 2432,
@@ -291,7 +294,7 @@
     {
       "id": "vintage_radio_transceiver",
       "group": "ekoo",
-      "lod0": 761840,
+      "lod0": 1283568,
       "tris": 42350,
       "_lod1": 349316,
       "tris_lod1": 16682,
@@ -301,7 +304,7 @@
     {
       "id": "wooden_barrels_01",
       "group": "ekoo",
-      "lod0": 697452,
+      "lod0": 1583788,
       "tris": 33142,
       "_lod1": 327204,
       "tris_lod1": 15722,
@@ -311,7 +314,7 @@
     {
       "id": "wooden_crate_01",
       "group": "ekoo",
-      "lod0": 156144,
+      "lod0": 476072,
       "tris": 6576,
       "_lod1": 61080,
       "tris_lod1": 2630,
@@ -321,7 +324,7 @@
     {
       "id": "wooden_crate_02",
       "group": "ekoo",
-      "lod0": 146636,
+      "lod0": 451744,
       "tris": 5176,
       "_lod1": 57580,
       "tris_lod1": 2069,
@@ -331,7 +334,7 @@
     {
       "id": "worn_metal_rack",
       "group": "ekoo",
-      "lod0": 133296,
+      "lod0": 420660,
       "tris": 6372,
       "_lod1": 71100,
       "tris_lod1": 3052,
@@ -341,7 +344,7 @@
     {
       "id": "compost_bags",
       "group": "mid",
-      "lod0": 262688,
+      "lod0": 560588,
       "tris": 18708,
       "_lod1": 116544,
       "tris_lod1": 7480,
@@ -351,7 +354,7 @@
     {
       "id": "covered_car",
       "group": "mid",
-      "lod0": 223776,
+      "lod0": 554864,
       "tris": 12592,
       "_lod1": 102468,
       "tris_lod1": 5035,
@@ -361,7 +364,7 @@
     {
       "id": "large_iron_gate",
       "group": "mid",
-      "lod0": 434168,
+      "lod0": 742744,
       "tris": 38140,
       "_lod1": 181980,
       "tris_lod1": 15256,
@@ -371,7 +374,7 @@
     {
       "id": "modular_chainlink_fence",
       "group": "mid",
-      "lod0": 1107564,
+      "lod0": 1469944,
       "tris": 89232,
       "_lod1": 541076,
       "tris_lod1": 35691,
@@ -381,7 +384,7 @@
     {
       "id": "modular_electricity_poles",
       "group": "mid",
-      "lod0": 2575948,
+      "lod0": 3145716,
       "tris": 200610,
       "_lod1": 1283416,
       "tris_lod1": 79478,
@@ -391,7 +394,7 @@
     {
       "id": "modular_electric_cables",
       "group": "mid",
-      "lod0": 661384,
+      "lod0": 1296544,
       "tris": 42078,
       "_lod1": 310364,
       "tris_lod1": 16822,
@@ -401,7 +404,7 @@
     {
       "id": "modular_industrial_pipes_01",
       "group": "mid",
-      "lod0": 344532,
+      "lod0": 1007916,
       "tris": 12340,
       "_lod1": 174348,
       "tris_lod1": 6998,
@@ -411,7 +414,7 @@
     {
       "id": "modular_pipes",
       "group": "mid",
-      "lod0": 780480,
+      "lod0": 1377508,
       "tris": 94856,
       "_lod1": 505376,
       "tris_lod1": 37942,
@@ -421,7 +424,7 @@
     {
       "id": "planter_box_01",
       "group": "mid",
-      "lod0": 182976,
+      "lod0": 521640,
       "tris": 8094,
       "_lod1": 76856,
       "tris_lod1": 3237,
@@ -431,7 +434,7 @@
     {
       "id": "planter_box_02",
       "group": "mid",
-      "lod0": 227116,
+      "lod0": 561328,
       "tris": 10944,
       "_lod1": 95644,
       "tris_lod1": 4377,
@@ -441,7 +444,7 @@
     {
       "id": "planter_box_03",
       "group": "mid",
-      "lod0": 253748,
+      "lod0": 585592,
       "tris": 13112,
       "_lod1": 108540,
       "tris_lod1": 5243,
@@ -451,7 +454,7 @@
     {
       "id": "street_lamp_01",
       "group": "mid",
-      "lod0": 296544,
+      "lod0": 555420,
       "tris": 30610,
       "_lod1": 133456,
       "tris_lod1": 12243,
@@ -461,7 +464,7 @@
     {
       "id": "street_lamp_02",
       "group": "mid",
-      "lod0": 238752,
+      "lod0": 488036,
       "tris": 20338,
       "_lod1": 109808,
       "tris_lod1": 8133,
@@ -471,7 +474,7 @@
     {
       "id": "watering_can_metal_01",
       "group": "mid",
-      "lod0": 232696,
+      "lod0": 549588,
       "tris": 11837,
       "_lod1": 94500,
       "tris_lod1": 4734,
@@ -481,7 +484,7 @@
     {
       "id": "water_manhole_cover",
       "group": "mid",
-      "lod0": 165080,
+      "lod0": 518492,
       "tris": 6301,
       "_lod1": 72228,
       "tris_lod1": 2520,
@@ -491,7 +494,7 @@
     {
       "id": "boulder_01",
       "group": "nature",
-      "lod0": 1196648,
+      "lod0": 1480252,
       "tris": 66122,
       "_lod1": 937396,
       "tris_lod1": 54544,
@@ -501,7 +504,7 @@
     {
       "id": "dead_tree_trunk_02",
       "group": "nature",
-      "lod0": 859956,
+      "lod0": 1147240,
       "tris": 83128,
       "_lod1": 350660,
       "tris_lod1": 33246,
@@ -511,7 +514,7 @@
     {
       "id": "dry_branches_medium_01",
       "group": "nature",
-      "lod0": 343072,
+      "lod0": 631012,
       "tris": 16803,
       "_lod1": 139584,
       "tris_lod1": 6721,
@@ -521,7 +524,7 @@
     {
       "id": "grass_bermuda_01",
       "group": "nature",
-      "lod0": 86592,
+      "lod0": 379336,
       "tris": 941,
       "_lod1": 34848,
       "tris_lod1": 376,
@@ -531,7 +534,7 @@
     {
       "id": "grass_medium_01",
       "group": "nature",
-      "lod0": 505484,
+      "lod0": 788516,
       "tris": 24730,
       "_lod1": 222312,
       "tris_lod1": 9892,
@@ -541,7 +544,7 @@
     {
       "id": "grass_medium_02",
       "group": "nature",
-      "lod0": 133940,
+      "lod0": 240236,
       "tris": 7842,
       "_lod1": 66204,
       "tris_lod1": 3135,
@@ -551,7 +554,7 @@
     {
       "id": "namaqualand_boulder_04",
       "group": "nature",
-      "lod0": 605912,
+      "lod0": 895548,
       "tris": 59066,
       "_lod1": 232432,
       "tris_lod1": 23626,
@@ -561,7 +564,7 @@
     {
       "id": "nettle_plant",
       "group": "nature",
-      "lod0": 411576,
+      "lod0": 737760,
       "tris": 31304,
       "_lod1": 199768,
       "tris_lod1": 12521,
@@ -569,19 +572,9 @@
       "tris_lod2": 4049
     },
     {
-      "id": "pine_tree_01",
-      "group": "nature",
-      "lod0": 231476264,
-      "tris": 17182252,
-      "_lod1": 116377084,
-      "tris_lod1": 6872049,
-      "_lod2": 47054804,
-      "tris_lod2": 2056453
-    },
-    {
       "id": "rock_07",
       "group": "nature",
-      "lod0": 233240,
+      "lod0": 539692,
       "tris": 14844,
       "_lod1": 92408,
       "tris_lod1": 5936,
@@ -591,7 +584,7 @@
     {
       "id": "rock_09",
       "group": "nature",
-      "lod0": 191028,
+      "lod0": 495764,
       "tris": 12416,
       "_lod1": 74804,
       "tris_lod1": 4966,
@@ -601,7 +594,7 @@
     {
       "id": "rock_moss_set_01",
       "group": "nature",
-      "lod0": 668224,
+      "lod0": 903092,
       "tris": 63127,
       "_lod1": 286232,
       "tris_lod1": 25247,
@@ -611,7 +604,7 @@
     {
       "id": "rock_moss_set_02",
       "group": "nature",
-      "lod0": 565784,
+      "lod0": 814788,
       "tris": 57647,
       "_lod1": 232856,
       "tris_lod1": 23058,
@@ -621,7 +614,7 @@
     {
       "id": "shrub_01",
       "group": "nature",
-      "lod0": 1589844,
+      "lod0": 1914508,
       "tris": 156012,
       "_lod1": 742636,
       "tris_lod1": 62396,
@@ -631,7 +624,7 @@
     {
       "id": "shrub_02",
       "group": "nature",
-      "lod0": 332412,
+      "lod0": 626580,
       "tris": 27254,
       "_lod1": 163580,
       "tris_lod1": 10888,
@@ -641,7 +634,7 @@
     {
       "id": "shrub_03",
       "group": "nature",
-      "lod0": 164156,
+      "lod0": 456492,
       "tris": 8287,
       "_lod1": 74832,
       "tris_lod1": 3314,
@@ -651,7 +644,7 @@
     {
       "id": "shrub_04",
       "group": "nature",
-      "lod0": 335436,
+      "lod0": 633772,
       "tris": 27327,
       "_lod1": 166672,
       "tris_lod1": 10894,
@@ -659,19 +652,9 @@
       "tris_lod2": 3193
     },
     {
-      "id": "tree_small_02",
-      "group": "nature",
-      "lod0": 26043392,
-      "tris": 2062487,
-      "_lod1": 12755020,
-      "tris_lod1": 823005,
-      "_lod2": 4423544,
-      "tris_lod2": 246496
-    },
-    {
       "id": "tree_stump_01",
       "group": "nature",
-      "lod0": 552104,
+      "lod0": 807816,
       "tris": 41046,
       "_lod1": 211192,
       "tris_lod1": 16415,
@@ -681,7 +664,7 @@
     {
       "id": "tree_stump_02",
       "group": "nature",
-      "lod0": 678400,
+      "lod0": 946500,
       "tris": 62345,
       "_lod1": 266420,
       "tris_lod1": 24937,
@@ -691,7 +674,7 @@
     {
       "id": "moon_rock_01",
       "group": "vessari",
-      "lod0": 210356,
+      "lod0": 521252,
       "tris": 18668,
       "_lod1": 90152,
       "tris_lod1": 7462,
@@ -701,7 +684,7 @@
     {
       "id": "moon_rock_02",
       "group": "vessari",
-      "lod0": 81268,
+      "lod0": 406776,
       "tris": 3304,
       "_lod1": 36412,
       "tris_lod1": 1898,
@@ -711,7 +694,7 @@
     {
       "id": "moon_rock_03",
       "group": "vessari",
-      "lod0": 98596,
+      "lod0": 410864,
       "tris": 5598,
       "_lod1": 38396,
       "tris_lod1": 2238,
@@ -721,7 +704,7 @@
     {
       "id": "moon_rock_04",
       "group": "vessari",
-      "lod0": 119368,
+      "lod0": 413188,
       "tris": 7636,
       "_lod1": 45812,
       "tris_lod1": 3054,
@@ -731,7 +714,7 @@
     {
       "id": "moon_rock_05",
       "group": "vessari",
-      "lod0": 134268,
+      "lod0": 434308,
       "tris": 9850,
       "_lod1": 52364,
       "tris_lod1": 3940,
@@ -741,7 +724,7 @@
     {
       "id": "moon_rock_06",
       "group": "vessari",
-      "lod0": 108600,
+      "lod0": 424376,
       "tris": 6920,
       "_lod1": 44104,
       "tris_lod1": 2768,
@@ -751,7 +734,7 @@
     {
       "id": "moon_rock_07",
       "group": "vessari",
-      "lod0": 98776,
+      "lod0": 416844,
       "tris": 6820,
       "_lod1": 40824,
       "tris_lod1": 2728,

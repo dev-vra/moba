@@ -29,6 +29,7 @@ const bootbar = document.getElementById('bootbar'); THREE.DefaultLoadingManager.
 const scene = new THREE.Scene();
 const rig = new CameraRig(innerWidth / innerHeight);
 const world = buildWorld(scene, renderer, quality);
+import('./world/dressing.js').then((m) => m.dress(scene, renderer));
 const post = createPost(renderer, scene, rig.camera, quality, { ...Object.fromEntries(q), ink: style === 'hq' });
 
 function resize() {
