@@ -13,8 +13,9 @@ const t0 = Date.now();
 await page.goto(`http://localhost:${process.env.PORT || 5173}/?${query}`, { waitUntil: 'load' });
 try { await page.waitForFunction('window.__ready', { timeout: 30000 }); } catch { console.log('[timeout] never ready'); }
 console.log('ready in', Date.now() - t0, 'ms');
-await new Promise((r) => setTimeout(r, 2500));
+if (process.env.EVAL) await page.evaluate(process.env.EVAL);
+await new Promise((r) => setTimeout(r, +(process.env.WAIT || 2500)));
+await page.screenshot({ path: out, type: 'jpeg', quality: 80 });
 const fps = await page.evaluate(() => new Promise((res) => { let n = 0; const s = performance.now(); (function f() { n++; performance.now() - s < 1000 ? requestAnimationFrame(f) : res(n); })(); }));
 console.log('fps', fps);
-await page.screenshot({ path: out, type: 'jpeg', quality: 80 });
 await browser.close();

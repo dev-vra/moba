@@ -12,8 +12,10 @@
   #boot{position:fixed;inset:0;display:grid;place-items:center;background:#11161d;color:#7fe9ff;letter-spacing:.3em;
     font-weight:700;transition:opacity .6s;z-index:10}
   #boot.off{opacity:0;pointer-events:none}
-  #hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);color:#cfe7ee;font-size:12px;letter-spacing:.08em;
+  @media (pointer:coarse){#hint{display:none}}
+  #hint{position:fixed;left:50%;top:54px;transform:translateX(-50%);color:#cfe7ee;font-size:12px;letter-spacing:.08em;
     background:rgba(12,18,24,.72);border:1px solid rgba(120,230,255,.35);padding:6px 14px;border-radius:4px;white-space:nowrap}
+  #hint{animation:hintOut 1s 9s forwards}@keyframes hintOut{to{opacity:0;visibility:hidden}}
   #logo{position:fixed;left:16px;top:12px;font-weight:900;font-size:20px;letter-spacing:.12em;color:#d8c9b4;
     text-shadow:0 2px 0 #20160f,0 0 12px rgba(0,0,0,.6)}
   #quality{position:fixed;right:14px;top:12px;background:rgba(12,18,24,.72);color:#cfe7ee;border:1px solid rgba(120,230,255,.35);
@@ -25,7 +27,7 @@
 <canvas id="game"></canvas>
 <div id="logo">EKOOFALL<b>ARENA</b></div>
 <button id="quality"></button>
-<div id="hint">WASD / arrastar: mover câmera · scroll: zoom · 1 AXIOM · 2 centro · 3 EKOO</div>
+<div id="hint">WASD mover · mouse mira · clique/ESPAÇO básico · Q E R habilidades · F ultimate · botão direito: ir até</div>
 <div id="boot">CARREGANDO CIDADE-CELEIRO…</div>
 <script type="module" src="/src/main.js"></script>
 </body>

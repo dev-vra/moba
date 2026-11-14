@@ -34,3 +34,11 @@ export function heightAt(x, z) {
   const baseFlat = smooth(52, 62, ax) * (1 - smooth(24, 36, az)) * (1 - smooth(98, 106, ax));
   return h * (1 - baseFlat);
 }
+
+// ---- walkable area: the lane (wider at tower plazas) + both base yards ----
+export const widen = (x) => 1 + 0.75 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));
+export function clampWalk(p) {
+  p.x = clamp(p.x, -73.5, 73.5);
+  const lim = Math.abs(p.x) > 54 ? 12.5 : lerp(5.6 * widen(p.x), 12.5, smooth(50, 54, Math.abs(p.x)));
+  p.z = clamp(p.z, -lim, lim); return p;
+}

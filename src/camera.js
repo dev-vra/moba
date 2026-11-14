@@ -7,7 +7,7 @@ const YAW = THREE.MathUtils.degToRad(35), PITCH = THREE.MathUtils.degToRad(50);
 export class CameraRig {
   constructor(aspect) {
     this.camera = new THREE.PerspectiveCamera(30, aspect, 8, 320);
-    this.target = new THREE.Vector3(); this.goal = new THREE.Vector3(); this.dist = 60; this.distGoal = 60;
+    this.target = new THREE.Vector3(); this.goal = new THREE.Vector3(); this.dist = 36; this.distGoal = 36; this.shake = 0;
     // ground-plane basis for screen-relative movement
     this.fwd = new THREE.Vector3(Math.sin(YAW), 0, -Math.cos(YAW));
     this.right = new THREE.Vector3(Math.cos(YAW), 0, Math.sin(YAW));
@@ -20,10 +20,13 @@ export class CameraRig {
     this.camera.updateProjectionMatrix();
   }
   snap(x, z) { this.goal.set(x, 0, z); this.target.copy(this.goal); this.apply(); }
-  apply() { this.camera.position.copy(this.target).addScaledVector(this.off, this.dist); this.camera.lookAt(this.target); }
+  apply() {
+    this.camera.position.copy(this.target).addScaledVector(this.off, this.dist); this.camera.lookAt(this.target);
+    if (this.shake > 0.001) { const s = this.shake * 0.5; this.camera.position.x += (Math.random() - 0.5) * s; this.camera.position.y += (Math.random() - 0.5) * s; this.camera.position.z += (Math.random() - 0.5) * s; }
+  }
   update(dt) {
     const k = 1 - Math.exp(-dt * 7);
-    this.target.lerp(this.goal, k); this.dist += (this.distGoal - this.dist) * k; this.apply();
+    this.target.lerp(this.goal, k); this.dist += (this.distGoal - this.dist) * k; this.shake *= Math.exp(-dt * 9); this.apply();
   }
 }
 

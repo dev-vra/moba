@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { createPost } from './render/post.js';
-import { CameraRig, freeCam } from './camera.js';
+import { CameraRig } from './camera.js';
 import { buildWorld } from './world/index.js';
+import { Input } from './game/input.js';
+import { HUD } from './ui/hud.js';
+import { VFX } from './game/vfx.js';
+import { Game, spawnDummies } from './game/game.js';
+import { Hero, SKILLS } from './game/hero.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -21,10 +26,6 @@ const rig = new CameraRig(innerWidth / innerHeight);
 const world = buildWorld(scene, renderer, quality);
 const post = createPost(renderer, scene, rig.camera, quality, Object.fromEntries(q));
 
-rig.snap(parseFloat(q.get('x') ?? '0'), parseFloat(q.get('z') ?? '0'));
-if (q.has('d')) rig.dist = rig.distGoal = parseFloat(q.get('d'));
-const control = freeCam(rig, canvas);
-
 function resize() {
   const pr = Math.min(devicePixelRatio, quality === 'high' ? 2 : 1), w = innerWidth, h = innerHeight;
   renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
@@ -32,10 +33,22 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
+const input = new Input(canvas, rig);
+const hud = new HUD(input, SKILLS);
+const vfx = new VFX(scene, rig, hud.fx);
+const game = new Game(scene, vfx);
+spawnDummies(game);                                   // temporary sparring targets until milestone 3 brings minions
+const hero = await Hero.create(game, scene, rig, input, vfx);
+rig.snap(hero.pos.x, hero.pos.z);
+window.__g = { game, hero, input, vfx, rig };         // dev / automated screenshots
+
 const clock = new THREE.Clock(); let t = 0, frames = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); t += dt;
-  control(dt); rig.update(dt); world.update(t, dt, rig.target, rig.dist);
+  input.update();
+  const gdt = vfx.hitstop > 0 ? dt * 0.06 : dt; vfx.hitstop -= dt;      // hit-stop on heavy impacts
+  game.update(gdt); vfx.update(dt); rig.update(dt);
+  world.update(t, dt, rig.target, rig.dist); hud.update(hero, game.t);
   post.render();
   if (loaded && scene.environment && ++frames === 3) { document.getElementById('boot').classList.add('off'); window.__ready = true; }
 });

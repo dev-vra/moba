@@ -125,3 +125,19 @@ T.beam = (() => {
   g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.6, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,1)');
   x.fillStyle = g; x.fillRect(0, 0, 8, 128); return fin(c, false);
 })();
+// gameplay VFX textures
+T.streak = (() => {      // soft horizontal streak, bright core
+  const [c, x] = mk(128, 32), g = x.createLinearGradient(0, 0, 128, 0);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.75, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 32);
+  const v = x.createLinearGradient(0, 0, 0, 32); v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(0.5, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,1)');
+  x.globalCompositeOperation = 'destination-out'; x.fillStyle = v; x.fillRect(0, 0, 128, 32); return fin(c, false);
+})();
+T.arrow = (() => {       // skill-shot indicator: soft lane with chevrons and a head (v=1 is the far end)
+  const [c, x] = mk(64, 256); const g = x.createLinearGradient(0, 256, 0, 0);
+  g.addColorStop(0, 'rgba(255,255,255,.05)'); g.addColorStop(1, 'rgba(255,255,255,.5)'); x.fillStyle = g; x.fillRect(6, 30, 52, 226);
+  x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 4; x.strokeRect(6, 30, 52, 226);
+  x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.moveTo(32, 0); x.lineTo(62, 32); x.lineTo(2, 32); x.fill();
+  x.lineWidth = 5; for (let y = 80; y < 250; y += 46) { x.beginPath(); x.moveTo(16, y + 16); x.lineTo(32, y); x.lineTo(48, y + 16); x.stroke(); }
+  return fin(c, false);
+})();

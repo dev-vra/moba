@@ -13,7 +13,7 @@ const GradeShader = {
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse; varying vec2 vUv;
     void main(){
-      vec3 c=texture2D(tDiffuse,vUv).rgb;
+      vec3 c=max(texture2D(tDiffuse,vUv).rgb,0.);
       float l=dot(c,vec3(.2126,.7152,.0722));
       c=mix(vec3(l),c,1.06);                                             // light saturation lift
       c*=mix(vec3(.96,.99,1.06),vec3(1.05,1.,.94),smoothstep(0.,.9,l));  // cool shadows / warm highlights
