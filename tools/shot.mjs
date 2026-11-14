@@ -10,7 +10,7 @@ await page.setViewport({ width: +w, height: +h, deviceScaleFactor: 1 });
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) console.log('[' + m.type() + ']', m.text().slice(0, 400)); });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 600)));
 const t0 = Date.now();
-await page.goto(`http://localhost:${process.env.PORT || 5173}/?${query}`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${process.env.PORT || 5173}/${process.env.PAGE || ""}?${query}`, { waitUntil: 'load' });
 try { await page.waitForFunction('window.__ready', { timeout: 30000 }); } catch { console.log('[timeout] never ready'); }
 console.log('ready in', Date.now() - t0, 'ms');
 if (process.env.EVAL) await page.evaluate(process.env.EVAL);
