@@ -14,6 +14,6 @@ export const ITEMS = [
 export const MAX_LEVEL = 12, ULT_LEVEL = 4, SLOTS = 6;
 export const xpNeed = (lvl) => 200 + 95 * (lvl - 1);
 export const REWARD = {                         // per kind: xp for being nearby, gold for the last hit
-  hoste: [58, 21], saque: [58, 21], drone: [40, 17], arq: [40, 17], eco: [105, 42],
+  hoste: [58, 21], saque: [58, 21], drone: [40, 17], arq: [40, 17], eco: [105, 42], cao: [62, 28], faisca: [70, 32], colosso: [300, 130], anciao: [300, 130],
 };
 export const BASE = { hp: 2200, atk: 118, speed: 7.4, eregen: 5, hpLvl: 165, atkLvl: 8 };

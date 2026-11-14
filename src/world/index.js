@@ -56,7 +56,7 @@ export function buildWorld(scene, renderer, quality) {
   P.greenhouse(b, g, R, -33.5, -13, -0.06, { len: 12, ruined: true }); P.greenhouse(b, g, R, 33.5, 13.5, -0.06, { len: 12, ruined: true });
   P.greenhouse(b, g, R, 33.5, -14, 0.08, { len: 12, wid: 5 }); P.greenhouse(b, g, R, -33.5, 14, 0.05, { len: 12, wid: 5, ruined: true });
   P.harvester(b, R, 5, 12.5, 2.6); P.waterTank(b, R, 44, 0, -11.5); P.waterTank(b, R, -45, H(-45, 18), 18);
-  const wheels = [P.windmill(b, scene, -32, H(-32, -22), -22, 0.7), P.windmill(b, scene, 48, H(48, 22), 22, -0.5)];
+  const wheels = [P.windmill(b, scene, -46, H(-46, -21), -21, 0.7), P.windmill(b, scene, 48, H(48, 22), 22, -0.5)];
   let prev = null;
   for (let x = -46; x <= 46; x += 18.4) {                                           // utility poles with sagging wires
     const z = -7.6 + Math.sin(x * 0.4) * 0.4, a = P.pole(b, x, z, 0.1 * Math.sin(x));
@@ -83,15 +83,16 @@ export function buildWorld(scene, renderer, quality) {
     else P.deadTree(b, R, x, H(x, z), z, 0.9 + R() * 0.6);
   }
   // ---------- the jungle: overgrowth walls along the trails, Vessari rifts at the camps ----------
-  for (let i = 0, n = 0; n < 150 && i < 3000; i++) {
-    const x = (R() - 0.5) * 84, z = (R() < 0.5 ? -1 : 1) * (19 + R() * 34), d = navDist(x, z);
-    if (d < 2.2 || d > 15 || inFarmP(x, z) || (Math.abs(z) < 25 && Math.abs(x) < 17) || (Math.abs(x) > 27 && Math.abs(z) < 21)) continue;
+  for (let i = 0, n = 0; n < 210 && i < 5000; i++) {
+    const x = (R() - 0.5) * 100, z = (R() < 0.5 ? -1 : 1) * (19 + R() * 44), d = navDist(x, z);
+    if (d < 2.2 || d > 15 || inFarmP(x, z) || (Math.abs(z) < 25 && Math.abs(x) < 17) || (Math.abs(x) > 27 && Math.abs(z) < 19)) continue;
     if (navDist(x + 1.3, z - 1.9) < 1 || navDist(x + 2.8, z - 4.1) < 1 || navDist(x + 4, z - 5.8) < 0.5) continue;   // never between the camera and walkable ground
     P.tree(b, R, x, H(x, z), z, 0.9 + R() * 0.7); n++;
     if (R() < 0.7) P.bush(b, R, x + (R() - 0.5) * 4, H(x, z), z + (R() - 0.5) * 4, 0.9 + R(), 0x1c3018);
     if (R() < 0.3) P.rock(b, R, x + 2, H(x + 2, z), z + 1, 1 + R() * 1.6, 0xb8b4b0);
   }
   for (const c of CAMPS) {
+    if (!c.rift) { for (let i = 0; i < 7; i++) { const a = R() * 6.28, d = c.r + 0.6 + R() * 2; P.rock(b, R, c.x + Math.cos(a) * d, 0, c.z + Math.sin(a) * d, 0.9 + R() * 1.2, 0x8a8494); } continue; }
     const fx0 = c.x, fz0 = c.z + c.side * 5.2;                                         // rift sits at the back of the clearing
     for (let i = 0; i < 9; i++) {                                                     // jagged dark shards cradling the rift
       const a = (i / 8 - 0.5) * 2.6, r = 2.6 + (i % 2) * 0.7, hgt = 2.2 + Math.cos(a) * 2.4 + (i % 3) * 0.5;
@@ -202,7 +203,7 @@ export function buildWorld(scene, renderer, quality) {
   const pm = [
     motes(scene, { n: 140, center: [BASE_X - 8, 0, 0], box: [60, 16, 50], vel: [-0.5, 1.5, 0.2], color: new THREE.Color(0xff9a4a).multiplyScalar(1.1), size: 4 }),
     motes(scene, { n: 140, center: [-BASE_X + 10, 0, 0], box: [60, 14, 50], vel: [0.3, -0.6, 0.1], color: new THREE.Color(0xa8e6f4).multiplyScalar(0.9), size: 3.6 }),
-    ...CAMPS.map((c) => motes(scene, { n: 90, center: [c.x, 0, c.z + c.side * 3], box: [20, 9, 20], vel: [0.1, 1.1, 0.1], color: new THREE.Color(0xa060ff).multiplyScalar(2.2), size: 4.5 })),
+    ...CAMPS.filter((c) => c.rift).map((c) => motes(scene, { n: 90, center: [c.x, 0, c.z + c.side * 3], box: [20, 9, 20], vel: [0.1, 1.1, 0.1], color: new THREE.Color(0xa060ff).multiplyScalar(2.2), size: 4.5 })),
     motes(scene, { n: 160, center: [0, 0, 0], box: [110, 9, 44], vel: [0.6, 0.15, 0.2], color: new THREE.Color(0xfff0d8).multiplyScalar(0.45), size: 3 }),
   ];
   const drones = [0, 1, 2].map((i) => { const d = droneDecor(scene); d.userData = { r: 13 + i * 4, h: 13 + i * 2.5, sp: 0.35 - i * 0.07, p: i * 2.1 }; return d; });

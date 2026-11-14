@@ -45,8 +45,8 @@ function ekooTower(g) {
 
 export class Tower {
   constructor(game, team) {
-    Object.assign(this, { game, team, isTower: true, alive: true, radius: 2.7, range: 11.5, atk: 185, cdMax: 1.0 });
-    this.pos = new THREE.Vector3(team === 'axiom' ? -TOWER_X : TOWER_X, 0, 0); this.maxHp = this.hp = 11000; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
+    Object.assign(this, { game, team, isTower: true, alive: true, radius: 2.7, range: 11.5, atk: 210, cdMax: 0.95 });
+    this.pos = new THREE.Vector3(team === 'axiom' ? -TOWER_X : TOWER_X, 0, 0); this.maxHp = this.hp = 16000; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
     const g = this.g = new THREE.Group(); g.position.copy(this.pos); game.scene.add(g);
     this.fx = team === 'axiom' ? axiomTower(g) : ekooTower(g); this.color = team === 'axiom' ? C_CYAN : C_AMBER;
     this.bar = new Bar(game.scene, 4.4, team === 'axiom' ? 0x3fc8ff : 0xff5236, 0.34);
@@ -66,13 +66,13 @@ export class Tower {
     if (!this.alive) { const k = Math.min(1, (this.deadT += dt) / 1.6); this.g.rotation.z = k * 0.45 * (this.team === 'axiom' ? 1 : -1); this.g.rotation.x = k * 0.2; this.g.position.y = -k * k * 3.2; return; }
     f.core.rotation.y = t * 1.6; f.core.position.y = f.muzzle + Math.sin(t * 2) * 0.18; f.core.scale.setScalar(1 + Math.min(0.5, Math.max(0, 0.5 - this.cd)) * 0.7); if (f.ring) { f.ring.rotation.x = PI / 2 + Math.sin(t * 0.9) * 0.4; f.ring.rotation.y = t * 0.7; f.ring.position.y = f.core.position.y; }
     this.bar.set(this.pos, 11.5, this.hp / this.maxHp);
-    const h = g.hero, hostile = this.team !== 'axiom', hd = h ? Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) : 99;
+    const h = g.hero, hostile = h && this.team !== h.team, hd = h ? Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) : 99;
     this.zone.material.opacity += (((hostile && hd < this.range + 5 ? (this.target === h ? 0.75 + Math.sin(t * 12) * 0.25 : 0.4) : 0)) - this.zone.material.opacity) * Math.min(1, dt * 6);
     if (g.over) return;
     if ((this.think -= dt) <= 0) {
       this.think = 0.25; let best = null, bd = this.range;
       for (const e of g.enemies(this.team)) { if (e.isHero || e.team === 'vessari' && !e.lane) continue; const d = Math.hypot(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - e.radius; if (d < bd) { bd = d; best = e; } }
-      if (!best && h && h.team !== this.team && h.alive && h.targetable !== false && hd - h.radius < this.range) best = h;
+      if (!best) best = g.nearest(this.team, this.pos, this.range, (e) => e.isHero);     // no minions in range: shoot heroes
       if (best !== this.target) this.ramp = 0; this.target = best;
     }
     this.cd = Math.max(0, this.cd - dt); const tg = this.target;

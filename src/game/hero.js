@@ -1,284 +1,166 @@
-// VETOR — o Assassino Implantado (AXIOM). Twin cyan energy blades.
-//   Passive  Marca de Quarentena: skills mark enemies (4s). Vetor deals +25% to marked targets; a basic hit on a mark refunds energy.
-//   Básico   Corte Duplo: 3-hit blade combo, the third is a wide spinning cut.
-//   S1       Corte Vetorial: dash through enemies, damaging and marking them. Hitting anything refunds half the cooldown.
-//   S2       Lâminas Gêmeas: throw both blades in a narrow V; they pierce, slow and mark.
-//   S3       Modo Fantasma: cloak + haste for 3s; the next basic blinks behind the target for a guaranteed critical "Execução".
-//   ULT      Protocolo: Erradicação: untargetable flurry of 6 blinks-and-cuts inside an area, ending in a shockwave.
+// Hero base: stats, progression (level / skill ranks / gold / items / buffs), orders, basic attacks, recall, death.
+// A hero is driven only by commands from its controller (`ctrl`): the local player's Input or a bot brain.
+//   ctrl.cmds      : [{t:'move',x,z} | {t:'attack',target} | {t:'stop'} | {t:'cast',k,point} | {t:'level',k} | {t:'recall'} | {t:'buy',item}]
+//   ctrl.attackHeld: basic attack toward ctrl.aim (cursor on the ground) while held
+//   ctrl.aimKey    : skill key being aimed (indicator preview)      ctrl.stick: touch joystick
+// The kit (kits/*.js) supplies the body (model + animation) and the four skills.
 import * as THREE from 'three';
-import { clampWalk, SPAWN_X } from '../core/util.js';
-import { loadVetor, HERO_SCALE } from './vetorModel.js';
-import { Bar, Indicator, C_CYAN, C_WHITE } from './vfx.js';
-import { ITEMS, BASE, MAX_LEVEL, ULT_LEVEL, SLOTS, xpNeed } from './items.js';
+import { clampWalk, findPath, SPAWN_X } from '../core/util.js';
+import { Bar, Indicator, C_WHITE } from './vfx.js';
+import { MAX_LEVEL, SLOTS, xpNeed } from './items.js';
+import { BUFFS, TEAM_COL } from './game.js';
 
-export const SKILLS = {
-  basic: { name: 'CORTE DUPLO', desc: 'Combo de 3 golpes; o terceiro é um corte giratório em área.', cd: 0 },
-  s1: { name: 'CORTE VETORIAL', desc: 'Avança cortando tudo no caminho e aplica Marca. Acertar devolve metade da recarga.', cd: 7, cost: 20, range: 9 },
-  s2: { name: 'LÂMINAS GÊMEAS', desc: 'Arremessa as duas lâminas: perfuram, causam lentidão e aplicam Marca.', cd: 8, cost: 25, range: 13 },
-  s3: { name: 'MODO FANTASMA', desc: 'Camuflagem e velocidade por 3s. O próximo básico teleporta às costas do alvo com crítico garantido.', cd: 14, cost: 30 },
-  ult: { name: 'PROTOCOLO: ERRADICAÇÃO', desc: 'Fica inalvejável e desfere 6 cortes relâmpago na área, finalizando com uma onda de choque.', cd: 40, cost: 50, range: 9, radius: 6.5 },
-};
-const ATK = [  // clip, window inside the source clip (s), playback duration, hit moment (0..1), damage x, reach, half-angle
-  { clip: 'stab', t0: 0.34, t1: 1.1, dur: 0.36, hit: 0.42, mul: 1.0, r: 3.3, half: 0.95, dir: 1 },
-  { clip: 'swipe', t0: 0.3, t1: 0.92, dur: 0.36, hit: 0.5, mul: 1.05, r: 3.4, half: 1.05, dir: -1 },
-  { clip: 'swipe', t0: 0.86, t1: 1.62, dur: 0.5, hit: 0.42, mul: 1.6, r: 3.9, half: 3.2, dir: 1, heavy: true },
-];
-const v3 = () => new THREE.Vector3(), _a = v3(), _b = v3(), _d = v3();
+export const KEYS = ['q', 'w', 'e', 'r'], RANK_MAX = 3, ULT_AT = [4, 8, 12];
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
 export class Hero {
-  static async create(game, scene, rig, input, vfx) { const h = new Hero(); await h.init(game, scene, rig, input, vfx); return h; }
-  async init(game, scene, rig, input, vfx) {
-    Object.assign(this, { game, scene, rig, input, vfx, isHero: true, team: 'axiom', radius: 0.8, alive: true, targetable: true });
-    this.pos = new THREE.Vector3(-SPAWN_X, 0, 0); this.yaw = Math.PI / 2; this.maxHp = this.hp = 2200; this.energy = 100; this.atk = 118; this.speed = 7.4; this.t = 0; this.marksApplied = 0;
-    this.skills = {}; for (const k in SKILLS) this.skills[k] = { ...SKILLS[k], ready: 0 };
-    this.level = 1; this.xp = 0; this.gold = 300; this.items = []; this.recalc();
-    const V = this.v = await loadVetor(); this.root = V.root; V.model.position.y = 0.2 * HERO_SCALE; scene.add(this.root);
-    // locomotion
-    const A = V.actions; this.loco = 'idle';
-    A.idle = V.mixer.clipAction(THREE.AnimationUtils.subclip(V.clips.stab, 'guard', 0, 9, 30)); A.idle.setLoop(THREE.LoopPingPong).play(); A.idle.timeScale = 0.3;
-    A.run.play(); A.run.setEffectiveWeight(0); A.run.timeScale = 1.2; this.ghostOn = false;
-    this.act = null; this.runW = 0; this.actW = 0;      // current one-shot { action, t, dur, ... }
-    this.combo = 0; this.comboUntil = 0; this.lock = 0; this.ghostUntil = 0; this.ult = null; this.dash = null; this.shots = [];
-    this.trails = V.blades.map(() => vfx.trail(C_CYAN)); this.trailK = 0;
-    this.ind = new Indicator(scene); this.bar = new Bar(scene, 2.4, 0x49f07a, 0.24);
-    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2fe4ff).multiplyScalar(1.6), transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.ring.position.y = 0.07; this.ring.layers.set(1); this.root.add(this.ring);
-    this.glow = new THREE.PointLight(0x4fdcff, 7, 7, 1.6); this.glow.position.set(0, 1.8, 0); this.root.add(this.glow);
-    // spare blade meshes for projectiles
-    this.proj = [0, 1].map(() => { const m = V.blades[0].clone(); m.scale.multiplyScalar(HERO_SCALE * 1.5); m.visible = false; scene.add(m); return m; });
-    this.kills = 0; this.deaths = 0; this.respawnAt = 0; this.spawnPos = this.pos.clone(); game.hero = this; game.add(this);
+  static async create(...a) { const h = new Hero(...a); await h.init(); return h; }
+  constructor(game, scene, rig, vfx, kit, team, ctrl, isPlayer, slot = 0) {
+    Object.assign(this, { game, scene, rig, vfx, kit, team, ctrl, isPlayer, isHero: true, radius: 0.8, alive: true, targetable: true });
+    const s = team === 'axiom' ? -1 : 1; this.spawnPos = new THREE.Vector3(s * SPAWN_X, 0, (slot - 0.5) * 5); this.pos = this.spawnPos.clone(); this.yaw = -s * Math.PI / 2; this.color = TEAM_COL[team];
+    this.t = 0; this.level = 1; this.xp = 0; this.gold = 300; this.items = []; this.points = 1; this.ranks = { q: 0, w: 0, e: 0, r: 0 }; this.buffs = { power: 0, signal: 0 }; this.shield = 0; this.energy = 100;
+    this.stat = { kills: 0, deaths: 0, dmg: 0, cs: 0 }; this.skills = {}; for (const k of KEYS) this.skills[k] = { ...kit.skills[k], ready: 0, cdNow: 1 };
+    this.path = []; this.target = null; this.atkT = 0; this.lock = 0; this.recall = null; this.timers = []; this.respawnAt = 0; this.combatAt = -99; this.repath = 0; this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.hasteMul = 1;
+    this.recalc();
   }
-  // ---------------- taking damage / death / respawn ----------------
-  hurt() { this.v.mat.userData.u.uFlash.value = 0.5; }
-  die() {
-    this.deaths++; this.endGhost(); this.ult = null; this.dash = null; this.step = null; this.throwAt = null; this.targetable = false; this.lock = 99; this.respawnAt = this.t + 7; this.ind.hide();
-    const a = this.play('death', { fade: 0.1 }); a.hold = true; this.vfx.ring(this.pos, { r1: 4, dur: 0.5 }); this.vfx.shake(0.8); this.vfx.stop(0.12);
+  async init() {
+    this.body = await this.kit.build(this); this.root = this.body.root; this.scene.add(this.root);
+    const mine = this.team === this.game.playerTeam;
+    this.bar = new Bar(this.scene, 2.6, this.isPlayer ? 0x49f07a : mine ? 0x3fc8ff : 0xff5236, 0.26);
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.12, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: (mine ? new THREE.Color(0x2fe4ff) : new THREE.Color(0xff5a2a)).multiplyScalar(1.6), transparent: true, opacity: this.isPlayer ? 0.9 : 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.ring.position.y = 0.07; this.ring.layers.set(1); this.scene.add(this.ring);
+    if (this.isPlayer) this.ind = new Indicator(this.scene);
+    this.kit.init?.(this); this.game.add(this); this.root.position.copy(this.pos);
   }
-  respawn() {
-    this.pos.copy(this.spawnPos); this.yaw = Math.PI / 2; this.hp = this.maxHp; this.energy = 100; this.alive = true; this.targetable = true; this.lock = 0.3; this.respawnAt = 0;
-    if (this.act) { this.act.action.fadeOut(0.2); this.act = null; } this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3 }); this.vfx.sparks({ x: this.pos.x, y: 1, z: this.pos.z }, 30, { speed: 6, up: 9, life: 0.8, grav: 5 }); this.rig.snap(this.pos.x, this.pos.z);
-  }
-  onKill() { this.energy = Math.min(100, this.energy + 4); }
-  // ---------------- progression: level, gold, items ----------------
+  after(sec, fn) { this.timers.push({ t: this.t + sec, fn }); }
+  get dirV() { return new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
+  face(d) { this.yaw = Math.atan2(d.x, d.z); }
+  get atBase() { return Math.hypot(this.pos.x - this.spawnPos.x, this.pos.z) < 8; }
+
+  // ---------------- stats / progression ----------------
   recalc() {
-    const st = { atk: 0, hp: 0, speed: 0, armor: 0, crit: 0, steal: 0, haste: 0, eregen: 0, tower: 0 };
+    const B = this.kit.base, st = { atk: 0, hp: 0, speed: 0, armor: 0, crit: 0, steal: 0, haste: 0, eregen: 0, tower: 0 }, L = this.level - 1, sig = this.buffs.signal > this.t;
     for (const it of this.items) for (const k in it.stats) st[k] += it.stats[k];
-    const old = this.maxHp || BASE.hp, L = this.level - 1;
-    this.maxHp = Math.round(BASE.hp + BASE.hpLvl * L + st.hp); this.hp = Math.min(this.maxHp, (this.hp ?? this.maxHp) + Math.max(0, this.maxHp - old));
-    this.atk = BASE.atk + BASE.atkLvl * L + st.atk; this.speed = BASE.speed * (1 + st.speed); this.eregen = BASE.eregen + st.eregen;
-    this.armor = Math.min(0.6, st.armor); this.crit = st.crit; this.steal = st.steal; this.haste = Math.min(0.45, st.haste); this.towerMul = 1 + st.tower;
+    const pw = this.power || 1, old = this.maxHp || B.hp; this.maxHp = Math.round((B.hp + B.hpLvl * L) * pw + st.hp); this.hp = Math.min(this.maxHp, (this.hp ?? this.maxHp) + Math.max(0, this.maxHp - old));
+    this.atk = (B.atk + B.atkLvl * L) * pw + st.atk; this.speed = B.speed * (1 + st.speed); this.eregen = 5 + st.eregen + (sig ? 4 : 0); this.range = B.range;
+    this.armor = Math.min(0.6, st.armor); this.crit = st.crit; this.steal = st.steal; this.haste = Math.min(0.5, st.haste + (sig ? 0.2 : 0)); this.towerMul = 1 + st.tower;
   }
   gainXp(n) {
     if (this.level >= MAX_LEVEL) return; this.xp += n;
     while (this.level < MAX_LEVEL && this.xp >= xpNeed(this.level)) {
-      this.xp -= xpNeed(this.level); this.level++; this.recalc(); this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.2); this.leveledAt = this.t;
-      this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3.4 }); this.vfx.ring(this.pos, { r0: 0.4, r1: 2.6, dur: 0.9, color: C_WHITE, k: 2.4 }); this.vfx.sparks({ x: this.pos.x, y: 0.5, z: this.pos.z }, 40, { speed: 4, up: 13, life: 1, grav: 6 });
-      this.vfx.number(this.pos, this.level === ULT_LEVEL ? 'NÍVEL ' + this.level + ' — ULTIMATE LIBERADA' : 'NÍVEL ' + this.level, 'level');
+      this.xp -= xpNeed(this.level); this.level++; this.points++; this.recalc(); this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.2); this.leveledAt = this.t;
+      this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3, color: this.color });
+      if (this.isPlayer) { this.vfx.ring(this.pos, { r0: 0.4, r1: 2.6, dur: 0.9, color: C_WHITE, k: 2.4 }); this.vfx.sparks({ x: this.pos.x, y: 0.5, z: this.pos.z }, 40, { speed: 4, up: 13, life: 1, grav: 6 }); this.vfx.number(this.pos, 'NÍVEL ' + this.level + ' — escolha uma habilidade (1-4)', 'level'); }
     }
     if (this.level >= MAX_LEVEL) this.xp = 0;
   }
   gainGold(n, pos) { this.gold += n; if (pos) this.vfx.number(pos, '+' + n, 'gold'); }
-  get atBase() { return Math.hypot(this.pos.x - this.spawnPos.x, this.pos.z - this.spawnPos.z) < 7; }
+  canLevel(k) { return this.points > 0 && this.ranks[k] < RANK_MAX && (k !== 'r' || this.level >= ULT_AT[this.ranks.r]); }
+  levelSkill(k) { if (!this.canLevel(k)) return false; this.ranks[k]++; this.points--; if (this.isPlayer) this.vfx.ring(this.pos, { r1: 2.4, dur: 0.3, k: 2.4 }); return true; }
   canBuy(it) { return this.items.includes(it) ? 'owned' : this.items.length >= SLOTS ? 'full' : this.gold < it.cost ? 'gold' : !(this.atBase || !this.alive) ? 'base' : null; }
-  buy(it) { if (this.canBuy(it)) return false; this.gold -= it.cost; this.items.push(it); this.recalc(); this.vfx.ring(this.pos, { r1: 3, dur: 0.4, k: 2.4 }); return true; }
-
-  get dirV() { return _d.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)).clone(); }
-  face(dir) { this.yaw = Math.atan2(dir.x, dir.z); }
-  can(id) { const s = this.skills[id]; return this.alive && !this.ult && this.t >= s.ready && this.energy >= (s.cost || 0) && !(id === 'ult' && this.level < ULT_LEVEL); }
-  spend(id) { const s = this.skills[id]; s.cdNow = s.cd * (1 - this.haste); s.ready = this.t + s.cdNow; this.energy -= s.cost || 0; }
-
-  // one-shot animation on top of locomotion
-  play(name, { t0 = 0, t1 = null, dur = null, fade = 0.06 } = {}) {
-    const A = this.v.actions[name], len = (t1 ?? this.v.clips[name].duration) - t0, d = dur ?? len;
-    if (this.act) this.act.action.fadeOut(fade);
-    A.reset(); A.setLoop(THREE.LoopOnce); A.clampWhenFinished = true; A.time = t0; A.timeScale = len / d; A.setEffectiveWeight(1); A.fadeIn(fade).play();
-    this.act = { action: A, t: 0, dur: d, name }; return this.act;
-  }
-
-  // ---------------- basic attack ----------------
-  basic() {
-    if (this.lock > 0 || this.ult || this.dash) return;
-    const g = this.game, ghost = this.ghostUntil > this.t;
-    let target = g.nearest(this.team, this.pos, ghost ? 8 : 4.6);
-    const aim = this.input.mouseDir();
-    if (ghost && target) return this.execute(target);
-    if (target) { _a.subVectors(target.pos, this.pos).setY(0); const d = _a.length() - target.radius; this.face(_a.normalize()); if (d > 2.0) this.step = { dir: _a.clone(), left: Math.min(d - 1.5, 1.8) }; }
-    else if (aim) this.face(aim.dir);
-    if (this.t > this.comboUntil) this.combo = 0;
-    const a = ATK[this.combo], act = this.play(a.clip, a); act.atk = a; act.done = false;
-    this.lock = a.dur * 0.82; this.combo = (this.combo + 1) % 3; this.comboUntil = this.t + a.dur + 0.9; this.trailK = 1;
-  }
-  strike(a) {
-    const g = this.game, dir = this.dirV, hits = g.inCone(this.team, this.pos, dir, a.r, a.half);
-    this.vfx.slash(this.pos, this.yaw, { r: a.r, dir: a.dir, dur: a.heavy ? 0.3 : 0.2, tilt: a.heavy ? 0 : a.dir * 0.22, k: a.heavy ? 3.6 : 2.8, y: 1.35 });
-    if (a.heavy) { this.vfx.slash(this.pos, this.yaw + Math.PI, { r: a.r, dir: a.dir, dur: 0.3, k: 3.2, y: 1.35 }); this.vfx.ring(this.pos, { r1: a.r, dur: 0.3, k: 1.4 }); }
-    for (const e of hits) {
-      const marked = e.markUntil > g.t; g.damage(this, e, this.atk * a.mul, { heavy: a.heavy, crit: Math.random() < this.crit });
-      if (marked) { this.energy = Math.min(100, this.energy + 8); e.markUntil = 0; }
-    }
-    if (hits.length) this.energy = Math.min(100, this.energy + 2);
-  }
-  // S3 follow-up: blink behind the target, guaranteed crit
-  execute(target) {
-    const g = this.game; _a.subVectors(target.pos, this.pos).setY(0).normalize(); const from = this.pos.clone();
-    this.pos.copy(target.pos).addScaledVector(_a, target.radius + 1.3); clampWalk(this.pos); this.face(_a.clone().negate());
-    this.vfx.streak(from, this.pos, { width: 1.8, dur: 0.35, k: 3 }); this.vfx.ring(from, { r1: 2, dur: 0.25 }); this.vfx.sparks({ x: from.x, y: 1.2, z: from.z }, 14, { speed: 6, up: 5 });
-    const a = ATK[2], act = this.play(a.clip, { ...a, dur: 0.34 }); act.done = true; this.lock = 0.3; this.trailK = 1.4; this.endGhost();
-    this.vfx.slash(this.pos, this.yaw, { r: 4, dur: 0.26, k: 4.2, tilt: 0.5 }); this.vfx.slash(this.pos, this.yaw, { r: 4, dur: 0.26, k: 4.2, tilt: -0.5, dir: -1 });
-    g.damage(this, target, this.atk * 1.7, { crit: true }); this.vfx.number(target.pos, 'EXECUÇÃO', 'info');
-    for (const e of g.inRadius(this.team, target.pos, 2.6)) if (e !== target) g.damage(this, e, this.atk * 0.8);
-  }
+  buy(it) { if (this.canBuy(it)) return false; this.gold -= it.cost; this.items.push(it); this.recalc(); if (this.alive) this.vfx.ring(this.pos, { r1: 3, dur: 0.4, k: 2.4, color: this.color }); return true; }
+  addBuff(kind) { this.buffs[kind] = this.t + BUFFS[kind].dur; this.recalc(); this.vfx.ring(this.pos, { r1: 5, dur: 0.7, k: 3, color: new THREE.Color(BUFFS[kind].color) }); }
 
   // ---------------- skills ----------------
-  aimDir(ev, range) {            // explicit aim > nearest enemy > facing
-    if (ev.dir) return ev.dir.clone();
-    const t = this.game.nearest(this.team, this.pos, range + 2); if (t) return _a.subVectors(t.pos, this.pos).setY(0).normalize().clone();
-    return this.dirV;
+  rank(k) { return this.ranks[k]; }
+  can(k) { const s = this.skills[k]; return this.alive && this.ranks[k] > 0 && this.lock <= 0.05 && !this.busy && this.t >= s.ready && this.energy >= s.cost; }
+  spend(k) { const s = this.skills[k]; s.cdNow = s.cd[this.ranks[k] - 1] * (1 - this.haste); s.ready = this.t + s.cdNow; this.energy -= s.cost; }
+  cast(k, point) {
+    if (!this.can(k)) { if (this.isPlayer && this.ranks[k] === 0 && this.t > (this.warnT || 0)) { this.warnT = this.t + 1.2; this.vfx.number(this.pos, 'Habilidade sem nível — use 1-4', 'info'); } return false; }
+    const s = this.skills[k]; let dir, dist = 0;
+    if (point) { _a.set(point.x - this.pos.x, 0, point.z - this.pos.z); dist = _a.length(); dir = dist > 0.2 ? _a.clone().normalize() : this.dirV; }
+    else { const e = this.game.nearest(this.team, this.pos, (s.range || 6) + 2); if (e) { _a.subVectors(e.pos, this.pos).setY(0); dist = _a.length(); dir = _a.clone().normalize(); } else { dir = this.dirV; dist = (s.range || 0) * 0.6; } }
+    const d = Math.min(dist, s.range || 0), at = clampWalk(this.pos.clone().addScaledVector(dir, d)); at.y = 0;
+    this.cancelRecall(); if (s.type !== 'self') this.face(dir); this.spend(k); this.ind?.hide(); this.path = s.keepMoving ? this.path : []; if (!s.keepTarget) this.target = null;
+    s.cast(this, { dir, point: at, dist: d }, this.ranks[k]); return true;
   }
-  cast(ev) {
-    const id = ev.skill; if (id === 'ult' && this.level < ULT_LEVEL) { if (this.t > (this.warnT || 0)) { this.warnT = this.t + 1.5; this.vfx.number(this.pos, 'ULTIMATE NO NÍVEL ' + ULT_LEVEL, 'info'); } return; }
-    if (id === 'taunt') { if (!this.act && this.lock <= 0) { this.play('taunt', { fade: 0.15 }); this.lock = 0.4; } return; }
-    if (!this.skills[id] || !this.can(id) || this.dash) return;
-    this.ind.hide();
-    if (id === 's1') {
-      const dir = this.aimDir(ev, SKILLS.s1.range), from = this.pos.clone(), to = clampWalk(from.clone().addScaledVector(dir, SKILLS.s1.range));
-      this.spend(id); this.face(dir); this.dash = { from, to, t: 0, dur: 0.17, hit: new Set() }; this.lock = 0.24; this.trailK = 1.6; this.endGhost(true);
-      this.play('dash', { dur: 0.3 }); this.vfx.ring(from, { r1: 2.6, dur: 0.25 }); this.vfx.shake(0.25);
-    } else if (id === 's2') {
-      const dir = this.aimDir(ev, SKILLS.s2.range); this.spend(id); this.face(dir); this.play('stab', { t0: 0.3, t1: 1.1, dur: 0.34 }); this.lock = 0.24; this.endGhost(true);
-      this.throwAt = { t: 0.1, dir };
-    } else if (id === 's3') {
-      this.spend(id); this.ghostUntil = this.t + 3; this.ghostOn = true; this.skills.basic.lit = true; this.v.mat.transparent = true; this.v.mat.needsUpdate = true; this.targetable = false;
-      this.vfx.ring(this.pos, { r1: 3, dur: 0.4, k: 2.6 }); this.vfx.sparks({ x: this.pos.x, y: 1.2, z: this.pos.z }, 24, { speed: 5, up: 7, life: 0.7, grav: 4 }); this.vfx.number(this.pos, 'MODO FANTASMA', 'info');
-    } else if (id === 'ult') {
-      const S = SKILLS.ult; let c;
-      if (ev.dir) c = this.pos.clone().addScaledVector(ev.dir, Math.min(S.range, ev.touchAim ? ev.mag * S.range : (ev.mag ?? S.range)));
-      else { const t = this.game.nearest(this.team, this.pos, S.range + S.radius); c = t ? t.pos.clone() : this.pos.clone().addScaledVector(this.dirV, 5); }
-      c.y = 0; clampWalk(c); this.spend(id); this.endGhost(true);
-      this.ult = { c, i: 0, next: 0.12, home: this.pos.clone() }; this.targetable = false; this.lock = 9; this.trailK = 2;
-      this.vfx.ring(c, { r0: S.radius, r1: S.radius * 0.98, dur: 1.1, k: 2.4 }); this.vfx.disc(c, { r: S.radius, dur: 1.1, k: 0.5 }); this.vfx.stop(0.08); this.vfx.shake(0.4);
-      this.vfx.number(this.pos, 'ERRADICAÇÃO', 'info');
-    }
-  }
-  endGhost() { if (!this.ghostOn) return; this.ghostOn = false; this.ghostUntil = 0; this.skills.basic.lit = false; this.v.mat.transparent = false; this.v.mat.opacity = 1; this.v.mat.needsUpdate = true; if (!this.ult) this.targetable = true; }
 
-  updateDash(dt) {
-    const d = this.dash, g = this.game; d.t += dt; const p = Math.min(1, d.t / d.dur), prev = this.pos.clone();
-    this.pos.lerpVectors(d.from, d.to, 1 - (1 - p) ** 2);
-    for (const e of g.inCapsule(this.team, prev, this.pos, 1.7)) if (!d.hit.has(e)) { d.hit.add(e); g.damage(this, e, this.atk * 1.5); g.mark(e, 4); this.marksApplied++; this.vfx.slash(e.pos, this.yaw + 1.2, { r: 2.4, dur: 0.18, tilt: 0.8, y: 1.3 }); }
-    this.vfx.sparks({ x: this.pos.x, y: 0.4, z: this.pos.z }, 3, { speed: 3, up: 2, life: 0.3, size: 0.35 });
-    if (p >= 1) {
-      this.vfx.streak(d.from, d.to, { width: 2.2, dur: 0.4, k: 3 }); this.vfx.streak(d.from, d.to, { width: 0.5, dur: 0.55, k: 5, y: 1.2 });
-      if (d.hit.size) { const s = this.skills.s1; s.ready = this.t + s.cdNow * 0.5; this.vfx.number(this.pos, 'RECARGA −50%', 'info'); }
-      this.dash = null;
+  // ---------------- orders ----------------
+  moveTo(x, z) { this.target = null; this.path = findPath(this.pos, { x, z }); this.cancelRecall(); }
+  stop() { this.path = []; this.target = null; }
+  startRecall() { if (!this.alive || this.busy || this.atBase) return; this.stop(); this.recall = { t: 0, dur: 3.6 }; }
+  cancelRecall() { if (this.recall) { this.recall = null; if (this.isPlayer) this.vfx.number(this.pos, 'Retorno interrompido', 'info'); } }
+  // enemy to basic-attack: the one under the cursor, else the closest one in the cursor's direction, else the closest
+  pickTarget() {
+    const g = this.game, aim = this.ctrl.aim, reach = this.range + 1.6;
+    if (aim) {
+      const near = g.nearest(this.team, aim, 2.6, (e) => Math.hypot(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - e.radius < reach + 3); if (near) return near;
+      _a.set(aim.x - this.pos.x, 0, aim.z - this.pos.z).normalize();
+      return g.nearest(this.team, this.pos, reach, (e) => { const dx = e.pos.x - this.pos.x, dz = e.pos.z - this.pos.z, d = Math.hypot(dx, dz) || 1; return d < e.radius + 1 || (dx * _a.x + dz * _a.z) / d > 0.5; });
     }
+    return g.nearest(this.team, this.pos, reach);
   }
-  throwBlades(dir) {
-    const S = SKILLS.s2;
-    [-1, 1].forEach((s, i) => {
-      const a = Math.atan2(dir.x, dir.z) + s * 0.1, d = new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), m = this.proj[i];
-      m.visible = true; m.position.set(this.pos.x, 1.35, this.pos.z).addScaledVector(d, 1);
-      this.shots.push({ m, d, from: this.pos.clone(), left: S.range, hit: new Set(), spin: s });
-    });
-    this.vfx.slash(this.pos, this.yaw, { r: 2.6, dur: 0.16, k: 2.6 }); this.v.blades.forEach((b) => { b.visible = false; }); this.bladesBack = this.t + 0.55;
+
+  // ---------------- damage / death ----------------
+  hurt(dmg, src) { this.body.flash?.(); this.cancelRecall(); this.combatAt = this.game.t; this.lastHitBy = src; }
+  die() {
+    this.stat.deaths++; this.kit.onDie?.(this); this.timers.length = 0; this.busy = false; this.path = []; this.target = null; this.recall = null; this.targetable = false; this.lock = 99; this.shield = 0; this.buffs.power = this.buffs.signal = 0; this.recalc();
+    this.respawnAt = this.t + 6 + this.level * 0.7; this.ind?.hide(); this.body.play('death'); this.vfx.ring(this.pos, { r1: 4, dur: 0.5, color: this.color });
+    if (this.isPlayer) { this.vfx.shake(0.8); this.vfx.stop(0.12); }
   }
-  updateShots(dt) {
-    const g = this.game;
-    for (let i = this.shots.length - 1; i >= 0; i--) {
-      const s = this.shots[i], step = Math.min(s.left, 34 * dt), prev = s.m.position.clone(); s.left -= step;
-      s.m.position.addScaledVector(s.d, step); s.m.rotation.set(Math.PI / 2, 0, s.m.rotation.z + dt * 38 * s.spin);
-      for (const e of g.inCapsule(this.team, prev, s.m.position, 0.95)) if (!s.hit.has(e)) { s.hit.add(e); g.damage(this, e, this.atk * 1.1); g.mark(e, 4); g.slow(e, 0.65, 1.5); this.marksApplied++; }
-      this.vfx.sparks(s.m.position, 2, { speed: 2.5, up: 1, life: 0.28, size: 0.4, grav: 2 });
-      if (s.left <= 0) { this.vfx.streak(s.from, s.m.position, { width: 0.7, dur: 0.3, y: 1.3, k: 3 }); this.vfx.ring(s.m.position, { r1: 1.8, dur: 0.22 }); this.vfx.sparks(s.m.position, 10, { speed: 6 }); s.m.visible = false; this.shots.splice(i, 1); }
-    }
-    if (this.bladesBack && this.t >= this.bladesBack) { this.bladesBack = 0; this.v.blades.forEach((b) => { b.visible = true; }); this.vfx.sparks({ x: this.pos.x, y: 1.3, z: this.pos.z }, 8, { speed: 3, up: 2 }); }
-  }
-  updateUlt(dt) {
-    const u = this.ult, g = this.game, S = SKILLS.ult; u.next -= dt; if (u.next > 0) return;
-    if (u.i < 6) {
-      const pool = g.inRadius(this.team, u.c, S.radius), from = this.pos.clone(); let tp;
-      if (pool.length) { const e = pool[(Math.random() * pool.length) | 0], a = Math.random() * 6.283; tp = e.pos.clone().add(_a.set(Math.cos(a), 0, Math.sin(a)).multiplyScalar(e.radius + 1.2)); this.face(_b.subVectors(e.pos, tp).setY(0).normalize()); }
-      else { const a = u.i * 2.4, r = S.radius * 0.6; tp = u.c.clone().add(_a.set(Math.cos(a) * r, 0, Math.sin(a) * r)); this.face(_b.subVectors(u.c, tp).setY(0).normalize()); }
-      clampWalk(tp); this.pos.copy(tp);
-      this.vfx.streak(from, tp, { width: 1.3, dur: 0.3, k: 3.4, y: 1.2 }); this.vfx.slash(tp, this.yaw, { r: 3.6, dur: 0.2, k: 3.6, dir: u.i % 2 ? 1 : -1, tilt: (Math.random() - 0.5) * 1.2 });
-      for (const e of g.inCone(this.team, tp, this.dirV, 3.8, 1.3)) { g.damage(this, e, this.atk * 0.9); g.mark(e, 4); }
-      const a = ATK[u.i % 2 + 1]; this.play(a.clip, { ...a, dur: 0.2, fade: 0.03 }); this.vfx.shake(0.3); u.i++; u.next = 0.12;
-    } else if (u.i === 6) {
-      const from = this.pos.clone(); this.pos.copy(u.c); this.vfx.streak(from, u.c, { width: 1.6, dur: 0.3, k: 3.4 }); this.play('swipe', { ...ATK[2], dur: 0.5 });
-      u.i++; u.next = 0.2;
-    } else {
-      for (const e of g.inRadius(this.team, u.c, S.radius)) g.damage(this, e, this.atk * 2.2, { heavy: true });
-      this.vfx.ring(u.c, { r0: 0.5, r1: S.radius * 1.15, dur: 0.5, k: 4 }); this.vfx.ring(u.c, { r0: 0.5, r1: S.radius * 0.7, dur: 0.6, color: C_WHITE, k: 2.6 }); this.vfx.disc(u.c, { r: S.radius, dur: 0.4, k: 2.6 });
-      for (let k = 0; k < 6; k++) this.vfx.slash(u.c, k * 1.05, { r: S.radius, dur: 0.34, k: 3, tilt: (k % 2 ? 0.2 : -0.2) });
-      this.vfx.sparks({ x: u.c.x, y: 1, z: u.c.z }, 60, { speed: 16, up: 9, life: 0.8 }); this.vfx.shake(1.1); this.vfx.stop(0.1); this.vfx.flash(u.c, C_CYAN, 160);
-      this.ult = null; this.targetable = true; this.lock = 0.25;
-    }
+  respawn() {
+    this.pos.copy(this.spawnPos); this.hp = this.maxHp; this.energy = 100; this.alive = true; this.targetable = true; this.lock = 0.3; this.respawnAt = 0; this.body.play('idle');
+    this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3, color: this.color }); if (this.isPlayer) this.rig.snap(this.pos.x, this.pos.z);
   }
 
   update(dt) {
-    this.t += dt; const inp = this.input, g = this.game, A = this.v.actions, U = this.v.mat.userData.u;
-    inp.heroPos = this.pos; this.lock -= dt; U.uFlash.value *= Math.exp(-dt * 12);
-    if (!this.alive || g.over) {                                  // dead (or match over): just animate, wait for the respawn
-      inp.events.length = 0; if (this.act) this.act.t += dt; this.v.mixer.update(dt); this.root.position.copy(this.pos); this.root.rotation.y = this.yaw; this.bar.g.visible = false; this.ind.hide();
-      this.trails.forEach((tr) => tr.push(this.pos, this.pos, 0)); this.rig.goal.set(this.pos.x, 0, this.pos.z);
-      if (!this.alive && !g.over && this.t >= this.respawnAt) this.respawn(); return;
+    this.t += dt; const g = this.game, c = this.ctrl; this.lock -= dt; this.atkT -= dt;
+    if (!this.alive || g.over) {
+      this.body.update(dt, { moving: false, speedK: 0 }); this.root.position.copy(this.pos); this.root.rotation.y = this.yaw; this.bar.g.visible = false; this.ring.visible = false; this.ind?.hide();
+      c.think?.(this, g, dt); for (const m of c.cmds.splice(0)) { if (m.t === 'buy' && !g.over) this.buy(m.item); else if (m.t === 'level') this.levelSkill(m.k); }
+      if (!this.alive && !g.over && this.t >= this.respawnAt) this.respawn();
+      if (this.isPlayer) this.rig.goal.set(this.pos.x, 0, this.pos.z); return;
     }
-    const atBase = Math.hypot(this.pos.x - this.spawnPos.x, this.pos.z - this.spawnPos.z) < 5.5;
-    this.gold += 2 * dt; this.energy = Math.min(100, this.energy + (atBase ? 25 : this.eregen) * dt); this.hp = Math.min(this.maxHp, this.hp + (atBase ? this.maxHp * 0.16 : 5) * dt);
-    for (const ev of inp.events.splice(0)) this.cast(ev);
-    if (this.ghostOn && this.ghostUntil <= this.t) this.endGhost();
-    // touch aim preview
-    const aim = inp.aiming;
-    if (aim && aim.dir && this.can(aim.skill)) {
-      const yaw = Math.atan2(aim.dir.x, aim.dir.z);
-      if (aim.skill === 's1') this.ind.line(this.pos, yaw, SKILLS.s1.range, 3.2); else if (aim.skill === 's2') this.ind.line(this.pos, yaw, SKILLS.s2.range, 2.6);
-      else if (aim.skill === 'ult') this.ind.area(this.pos, SKILLS.ult.range, _a.copy(this.pos).addScaledVector(aim.dir, aim.mag * SKILLS.ult.range), SKILLS.ult.radius); else this.ind.hide();
-    } else this.ind.hide();
-
-    if (this.throwAt && (this.throwAt.t -= dt) <= 0) { this.throwBlades(this.throwAt.dir); this.throwAt = null; }
-    if (this.ult) this.updateUlt(dt); else if (this.dash) this.updateDash(dt);
-    this.updateShots(dt);
-    if (inp.basicHeld && this.alive) this.basic();
-
-    // one-shot action bookkeeping
-    if (this.act) {
-      const a = this.act; a.t += dt;
-      if (a.atk && !a.done && a.t >= a.dur * a.atk.hit) { a.done = true; this.strike(a.atk); }
-      if (a.t >= a.dur && !a.hold) { a.action.fadeOut(0.12); this.act = null; }
+    c.think?.(this, g, dt);
+    for (let i = this.timers.length - 1; i >= 0; i--) if (this.t >= this.timers[i].t) this.timers.splice(i, 1)[0].fn();
+    for (const m of c.cmds.splice(0)) {
+      if (m.t === 'level') this.levelSkill(m.k); else if (m.t === 'buy') this.buy(m.item); else if (this.busy) continue;
+      else if (m.t === 'move') this.moveTo(m.x, m.z); else if (m.t === 'attack') { this.target = m.target; this.cancelRecall(); } else if (m.t === 'stop') this.stop();
+      else if (m.t === 'cast') this.cast(m.k, m.point); else if (m.t === 'recall') this.startRecall();
     }
-    // movement
-    let moving = false;
-    if (this.step && !this.dash && !this.ult) { const s = Math.min(this.step.left, 22 * dt); this.pos.addScaledVector(this.step.dir, s); this.step.left -= s; if (this.step.left <= 0) this.step = null; }
-    if (this.lock <= 0 && !this.dash && !this.ult && this.alive) {
-      const m = inp.move; _a.set(0, 0, 0);
-      if (m.lengthSq() > 0.01) _a.addScaledVector(this.rig.right, m.x).addScaledVector(this.rig.fwd, m.y);
-      else if (inp.moveTo) { _a.subVectors(inp.moveTo, this.pos).setY(0); if (_a.length() < 0.25) { inp.moveTo = null; _a.set(0, 0, 0); } }
-      const l = _a.length();
-      if (l > 0.01) {
-        _a.divideScalar(l); const sp = this.speed * (this.ghostUntil > this.t ? 1.45 : 1) * Math.min(1, inp.moveTo ? 1 : inp.move.length());
-        this.pos.addScaledVector(_a, sp * dt); moving = true;
-        const want = Math.atan2(_a.x, _a.z); let dy = want - this.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); this.yaw += dy * Math.min(1, dt * 16);
-        A.run.timeScale = 1.2 * sp / this.speed;
-      }
+    // buffs / regen
+    if ((this.buffs.power && this.buffs.power <= this.t) || (this.buffs.signal && this.buffs.signal <= this.t)) { if (this.buffs.power <= this.t) this.buffs.power = 0; if (this.buffs.signal <= this.t) this.buffs.signal = 0; this.recalc(); }
+    const base = this.atBase, calm = g.t - this.combatAt > 5;
+    this.gold += 2 * dt; this.energy = Math.min(100, this.energy + (base ? 25 : this.eregen) * dt); this.hp = Math.min(this.maxHp, this.hp + (base ? this.maxHp * 0.16 : calm ? this.maxHp * 0.006 : 2) * dt);
+    if (this.shieldUntil && this.t > this.shieldUntil) { this.shield = 0; this.shieldUntil = 0; }
+    // recall channel
+    if (this.recall) {
+      const r = this.recall; r.t += dt; if (Math.floor(r.t * 3) !== Math.floor((r.t - dt) * 3)) this.vfx.ring(this.pos, { r0: 3.2 * (1 - r.t / r.dur) + 0.6, r1: 0.5, dur: 0.33, k: 2.4, color: this.color });
+      if (r.t >= r.dur) { this.recall = null; this.vfx.ring(this.pos, { r1: 4, dur: 0.4, color: this.color }); this.pos.copy(this.spawnPos); this.vfx.ring(this.pos, { r1: 5, dur: 0.6, k: 3, color: this.color }); if (this.isPlayer) this.rig.snap(this.pos.x, this.pos.z); }
     }
-    clampWalk(this.pos);
-    for (const tw of g.towers || []) if (tw.alive) { const dx = this.pos.x - tw.pos.x, dz = this.pos.z - tw.pos.z, d = Math.hypot(dx, dz) || 0.01, min = tw.radius + 0.7; if (d < min) { this.pos.x += dx / d * (min - d); this.pos.z += dz / d * (min - d); } }
-    // blend idle <-> run
-    this.runW += ((moving ? 1 : 0) - this.runW) * Math.min(1, dt * 12); this.actW += ((this.act ? 1 : 0) - this.actW) * Math.min(1, dt * 24);
-    const lw = 1 - this.actW * 0.97;                      // one-shots take over from locomotion (the mixer normalises weights)
-    A.run.setEffectiveWeight(this.runW * lw); A.idle.setEffectiveWeight((1 - this.runW) * lw + 0.001);
-    this.v.mixer.update(dt);
-    this.root.position.copy(this.pos); this.root.rotation.y = this.yaw;
-    this.v.model.rotation.x = this.dash ? 0.45 : 0;
+    this.kit.update?.(this, dt);
 
-    // presentation: ghost fade, rim, blade trails, bars
-    const ghost = this.ghostUntil > this.t, u = U;
-    if (this.v.mat.transparent) this.v.mat.opacity += ((ghost ? 0.38 : 1) - this.v.mat.opacity) * Math.min(1, dt * 10);
-    u.uRim.value += ((ghost ? 2.2 : this.ult ? 1.6 : 0.55) - u.uRim.value) * Math.min(1, dt * 8);
-    this.trailK = Math.max(0, this.trailK - dt * 2.6); const k = Math.min(1, this.trailK + (this.dash || this.ult ? 1 : 0));
-    this.v.blades.forEach((b, i) => { b.updateWorldMatrix(true, false); _a.copy(b.userData.base).applyMatrix4(b.matrixWorld); _b.copy(b.userData.tip).applyMatrix4(b.matrixWorld); this.trails[i].push(_a, _b, b.visible ? k : 0); });
-    this.bar.g.visible = !this.ult; this.bar.set(this.pos, 3.7, this.hp / this.maxHp);
-    this.ring.rotation.y -= dt * 0.8; this.glow.intensity = ghost ? 16 : 7;
-    this.rig.goal.set(this.pos.x, 0, this.pos.z);
+    // ---- basic attacks ----
+    if (c.attackHeld && !this.busy) { const tg = this.pickTarget(); if (tg) { this.target = tg; this.holdAttack = true; } else if (this.kit.base.melee && this.lock <= 0 && this.atkT <= 0 && c.aim) { _a.set(c.aim.x - this.pos.x, 0, c.aim.z - this.pos.z).normalize(); this.face(_a); this.path = []; this.kit.basic(this, null, _a.clone()); } }
+    else if (this.holdAttack) { this.holdAttack = false; if (!c.keepTarget) this.target = null; }
+    let tg = this.target; if (tg && (!tg.alive || tg.targetable === false)) tg = this.target = null;
+    if (tg && !this.busy) {
+      _a.subVectors(tg.pos, this.pos).setY(0); const d = _a.length() - tg.radius; _a.normalize();
+      if (d <= this.range) { this.path = []; if (this.lock <= 0) this.face(_a); if (this.atkT <= 0 && this.lock <= 0) { this.cancelRecall(); this.kit.basic(this, tg, _a.clone()); } }
+      else if (!this.holdAttack || d < this.range + 4) { if ((this.repath -= dt) <= 0) { this.repath = 0.3; this.path = findPath(this.pos, tg.pos); } }
+      else this.target = null;
+    }
+    // ---- movement: joystick (touch) or path following ----
+    let moving = false, sp = this.speed * (this.slowUntil > g.t ? this.slowK : 1) * this.hasteMul;
+    if (this.lock <= 0 && !this.busy && !this.recall) {
+      _b.set(0, 0, 0);
+      if (c.stick && c.stick.lengthSq() > 0.01) { _b.addScaledVector(this.rig.right, c.stick.x).addScaledVector(this.rig.fwd, c.stick.y); sp *= Math.min(1, c.stick.length()); this.path = []; this.target = null; }
+      else if (this.path.length) { const p = this.path[0]; _b.set(p.x - this.pos.x, 0, p.z - this.pos.z); if (_b.length() < Math.max(0.25, sp * dt)) { this.path.shift(); if (!this.path.length) _b.set(0, 0, 0); } }
+      const l = _b.length();
+      if (l > 0.01) { _b.divideScalar(l); this.pos.addScaledVector(_b, sp * dt); moving = true; let dy = Math.atan2(_b.x, _b.z) - this.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); this.yaw += dy * Math.min(1, dt * 16); }
+    }
+    if (!this.busy) clampWalk(this.pos);
+    for (const tw of g.towers) if (tw.alive) { const dx = this.pos.x - tw.pos.x, dz = this.pos.z - tw.pos.z, d = Math.hypot(dx, dz) || 0.01, min = tw.radius + 0.7; if (d < min) { this.pos.x += dx / d * (min - d); this.pos.z += dz / d * (min - d); } }
+
+    // ---- presentation ----
+    this.body.update(dt, { moving, speedK: sp / this.kit.base.speed }); this.root.position.copy(this.pos); this.root.rotation.y = this.yaw;
+    this.bar.g.visible = this.targetable || this.isPlayer; this.bar.set(this.pos, this.kit.barY || 3.8, this.hp / this.maxHp); this.ring.visible = true; this.ring.position.set(this.pos.x, 0.07, this.pos.z); this.ring.rotation.y -= dt * 0.8;
+    if (this.isPlayer) {
+      this.rig.goal.set(this.pos.x, 0, this.pos.z); const k = c.aimKey, s = k && this.skills[k];
+      if (s && this.ranks[k] > 0 && c.aim && s.type !== 'self') {
+        _a.set(c.aim.x - this.pos.x, 0, c.aim.z - this.pos.z); const d = Math.min(_a.length(), s.range), yaw = Math.atan2(_a.x, _a.z); _a.normalize();
+        if (s.type === 'point') this.ind.area(this.pos, s.range, _b.copy(this.pos).addScaledVector(_a, d), s.radius); else this.ind.line(this.pos, yaw, s.range, (s.width || 1.2) * 2);
+      } else this.ind.hide();
+    }
   }
 }

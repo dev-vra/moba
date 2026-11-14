@@ -6,8 +6,8 @@ import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CA
 
 export const SIZE_X = 230, SIZE_Z = 180;
 export const FARMS = [
-  { x: -42, z: 26, w: 20, d: 11, r: 0.14 }, { x: -2, z: 56, w: 24, d: 11, r: -0.08 }, { x: 43, z: 27, w: 18, d: 11, r: 0.1 },
-  { x: 41, z: -28, w: 20, d: 10, r: 0.12 }, { x: -43, z: -27, w: 20, d: 10, r: -0.1 }, { x: 6, z: -56, w: 22, d: 10, r: 0.06 },
+  { x: -54, z: 36, w: 20, d: 11, r: 0.14 }, { x: 12, z: 60, w: 24, d: 11, r: -0.08 }, { x: 54, z: 38, w: 18, d: 11, r: 0.1 },
+  { x: 54, z: -38, w: 20, d: 10, r: 0.12 }, { x: -54, z: -37, w: 20, d: 10, r: -0.1 }, { x: -12, z: -60, w: 22, d: 10, r: 0.06 },
 ];
 const PAD = [[-112, -23], [-62, -23], [-54, -14], [-54, 14], [-62, 23], [-112, 23]];
 
@@ -66,7 +66,7 @@ function paintTint(R) {                        // multiplied x2 over the albedo 
   }
   // jungle: damp dark trails, Vessari corruption staining the camps violet-black
   trails(R, (wx, wz, camp) => { if (R() < 0.5) p.dab(wx, wz, 1 + R() * 1.6, camp ? '#55485e' : '#5c5a50', 0.28); });
-  for (const c of CAMPS) for (let i = 0; i < 160; i++) { const a = R() * 6.283, d = c.r * (0.5 + R() * 1.1); p.dab(c.x + Math.cos(a) * d, c.z + Math.sin(a) * d, 0.8 + R() * 2, '#3c3048', 0.25); }
+  for (const c of CAMPS) for (let i = 0; i < (c.rift ? 160 : 60); i++) { const a = R() * 6.283, d = c.r * (0.5 + R() * 1.1); p.dab(c.x + Math.cos(a) * d, c.z + Math.sin(a) * d, 0.8 + R() * 2, '#3c3048', 0.25); }
   // lane: darker worn shoulders, tyre tracks, mud
   for (let wx = -80; wx <= 80; wx += 0.5) for (const s of [-1, 1]) p.dab(wx + R(), s * (5.6 + R() * 1.6) * widen(wx), 0.9 + R() * 1.2, '#4c4840', 0.3);
   x.lineCap = 'round';
@@ -101,8 +101,8 @@ function paintEmis() {
   const p = painter(1024, 800, '#000'), { x, X, Z, sx } = p;
   // Vessari rift veins crawling out of each camp
   x.strokeStyle = '#8a4cf0'; x.shadowColor = '#8a4cf0'; x.shadowBlur = 6; x.lineCap = 'round';
-  for (const c of CAMPS) for (let i = 0; i < 16; i++) {
-    let a = (i / 16) * 6.283 + Math.sin(i * 7) * 0.2, r = 1.5, px = c.x, pz = c.z + c.side * 5; x.lineWidth = 2.6; x.beginPath(); x.moveTo(X(px), Z(pz));
+  for (const c of CAMPS) for (let i = 0; i < (c.rift ? 16 : 7); i++) {
+    let a = (i / (c.rift ? 16 : 7)) * 6.283 + Math.sin(i * 7) * 0.2, r = 1.5, px = c.x, pz = c.z + c.side * (c.rift ? 5 : 2); x.lineWidth = c.rift ? 2.6 : 1.6; x.beginPath(); x.moveTo(X(px), Z(pz));
     for (let k = 0; k < 7; k++) { a += Math.sin(i * 3 + k * 1.7) * 0.5; r = 1.2 + k * 0.25; px += Math.cos(a) * r; pz += Math.sin(a) * r; x.lineTo(X(px), Z(pz)); }
     x.globalAlpha = 0.8; x.stroke();
   }

@@ -26,13 +26,25 @@ export const TOWER_X = 36;          // |x| of each lane tower
 
 // ---- walkable area: lane (wider at tower plazas) + base yards + jungle paths + Vessari camps ----
 export const widen = (x) => 1 + 0.75 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));
-export const CAMPS = [{ x: 0, z: -35, r: 8.5, side: -1 }, { x: 0, z: 35, r: 8.5, side: 1 }];   // side: -1 north, +1 south
+// Jungle camps. reward: 'convert' (Vessari join the lane), 'power' / 'signal' (hero buff), or none (gold + xp farm).
+export const CAMPS = [
+  { id: 'riftN', name: 'Fenda Norte', x: 0, z: -35, r: 8.5, side: -1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
+  { id: 'riftS', name: 'Fenda Sul', x: 0, z: 35, r: 8.5, side: 1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
+  { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -48, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
+  { id: 'signal', name: 'Eco Ancião', x: -24, z: 48, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
+  { id: 'caesN', name: 'Matilha de Sucata', x: -33, z: -29, r: 5.2, side: -1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
+  { id: 'caesS', name: 'Matilha de Sucata', x: 33, z: 29, r: 5.2, side: 1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
+  { id: 'faiscasN', name: 'Faíscas da Fenda', x: 33, z: -29, r: 5.2, side: -1, kinds: ['faisca', 'faisca'], respawn: 45 },
+  { id: 'faiscasS', name: 'Faíscas da Fenda', x: -33, z: 29, r: 5.2, side: 1, kinds: ['faisca', 'faisca'], respawn: 45 },
+];
 export const PATH_R = 3;
 export const PATHS = [];                       // jungle trail segments [ax, az, bx, bz]
 for (const s of [-1, 1]) for (const m of [-1, 1]) {
   const pts = [[m * 22, s * 3], [m * 21.5, s * 19], [m * 11, s * 31], [m * 3, s * 35]];
   for (let i = 0; i < pts.length - 1; i++) PATHS.push([...pts[i], ...pts[i + 1]]);
+  PATHS.push([m * 21.5, s * 19, m * 33, s * 29]);                          // spur to the small farm camps
 }
+PATHS.push([11, -31, 24, -48], [-11, 31, -24, 48]);                        // spurs to the buff camps
 const laneLim = (x) => { const ax = Math.abs(x); return ax > 54 ? 12.5 : lerp(5.6 * widen(x), 12.5, smooth(50, 54, ax)); };
 // distance to the walkable area (<= 0 inside). `out` receives the nearest walkable point.
 export function navDist(x, z, out) {
@@ -60,4 +72,40 @@ export function heightAt(x, z) {
   h += smooth(98, 110, ax) * 8;
   const flat = Math.max(1 - smooth(17, 32, az), 1 - smooth(1.5, 8, navDist(x, z)), smooth(52, 62, ax) * (1 - smooth(24, 36, az)) * (1 - smooth(98, 106, ax)));
   return h * (1 - flat);
+}
+
+// ---- path finding: straight line when clear, otherwise a tiny waypoint graph (lane spine + trail joints + camps) ----
+export const BLOCKERS = [];                    // circular obstacles (towers): { x, z, r, on() }
+function clear(ax, az, bx, bz) {
+  const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 0.8));
+  for (let i = 0; i <= n; i++) {
+    const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n; if (navDist(x, z) > 0.05) return false;
+    for (const o of BLOCKERS) if (o.on() && Math.hypot(x - o.x, z - o.z) < o.r + 0.5 && i > 0 && i < n) return false;
+  }
+  return true;
+}
+let NODES = null, EDGES = null;
+function graph() {
+  NODES = []; const add = (x, z) => { if (!NODES.some((n) => Math.hypot(n[0] - x, n[1] - z) < 1)) NODES.push([x, z]); };
+  for (const x of [-68, -52, -44, -28, -22, -11, 0, 11, 22, 28, 44, 52, 68]) add(x, 0);
+  for (const s of [-1, 1]) for (const z of [-4.6, 4.6]) add(s * TOWER_X, z);                    // slip past either side of a tower
+  for (const [a, b2, c, d] of PATHS) { add(a, b2); add(c, d); } for (const c of CAMPS) add(c.x, c.z);
+  EDGES = NODES.map((a, i) => NODES.map((b2, j) => (i !== j && clear(a[0], a[1], b2[0], b2[1]) ? Math.hypot(a[0] - b2[0], a[1] - b2[1]) : 0)));
+}
+export function findPath(from, to) {
+  const goal = clampWalk({ x: to.x, z: to.z });
+  if (clear(from.x, from.z, goal.x, goal.z)) return [goal];
+  if (!NODES) graph();
+  const N = NODES.length, dist = new Array(N + 1).fill(Infinity), prev = new Array(N + 1).fill(-1), done = new Array(N + 1).fill(false);
+  const toGoal = NODES.map((n) => (clear(n[0], n[1], goal.x, goal.z) ? Math.hypot(n[0] - goal.x, n[1] - goal.z) : 0));
+  NODES.forEach((n, i) => { if (clear(from.x, from.z, n[0], n[1])) dist[i] = Math.hypot(n[0] - from.x, n[1] - from.z); });
+  for (;;) {
+    let u = -1; for (let i = 0; i <= N; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+    if (u < 0 || u === N) break; done[u] = true;
+    for (let v = 0; v < N; v++) if (EDGES[u][v] && dist[u] + EDGES[u][v] < dist[v]) { dist[v] = dist[u] + EDGES[u][v]; prev[v] = u; }
+    if (toGoal[u] && dist[u] + toGoal[u] < dist[N]) { dist[N] = dist[u] + toGoal[u]; prev[N] = u; }
+  }
+  if (dist[N] === Infinity) return [goal];
+  const out = [goal]; for (let u = prev[N]; u >= 0; u = prev[u]) out.unshift({ x: NODES[u][0], z: NODES[u][1] });
+  return out;
 }

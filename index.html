@@ -23,6 +23,7 @@
   #hint{animation:hintOut 1s 9s forwards}@keyframes hintOut{to{opacity:0;visibility:hidden}}
   #logo{position:fixed;left:14px;top:10px;font-weight:900;font-size:16px;letter-spacing:.12em;color:#d8c9b4;
     text-shadow:0 2px 0 #20160f,0 0 12px rgba(0,0,0,.6)}
+  #style{position:fixed;right:14px;top:40px;z-index:6;background:rgba(12,18,24,.72);color:#cfe7ee;border:1px solid rgba(120,230,255,.35);padding:6px 12px;border-radius:4px;font:700 11px/1 inherit;letter-spacing:.12em;cursor:pointer}
   #quality{position:fixed;right:14px;top:10px;z-index:6;background:rgba(12,18,24,.72);color:#cfe7ee;border:1px solid rgba(120,230,255,.35);
     padding:6px 12px;border-radius:4px;font:700 11px/1 inherit;letter-spacing:.12em;cursor:pointer}
   #logo b{display:block;font-size:13px;letter-spacing:.5em;color:#5fe6ff;text-shadow:0 0 10px #19c8ee}
@@ -31,8 +32,8 @@
 <body>
 <canvas id="game"></canvas>
 <div id="logo">EKOOFALL<b>ARENA</b></div>
-<button id="quality"></button>
-<div id="hint">WASD mover · mouse mira · clique/ESPAÇO ataca · Q E R habilidades · F ultimate · P loja · botão direito: ir até</div>
+<button id="quality"></button><button id="style"></button>
+<div id="hint">Botão direito move/ataca · ESPAÇO básico no cursor · Q W E R habilidades · 1-4 sobem nível · B base · C loja</div>
 <div id="boot"><div><h1>EKOOFALL</h1><h2>ARENA</h2><div class="track"><i id="bootbar"></i></div><p>CARREGANDO A CIDADE-CELEIRO · 2049</p></div></div>
 <script type="module" src="/src/main.js"></script>
 </body>

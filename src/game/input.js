@@ -1,44 +1,44 @@
-// Unified input: keyboard + mouse and touch (HUD joystick / buttons) feed the same state.
-//   move      : screen-relative stick (x right, y up), |move| <= 1
-//   aimPoint  : mouse position on the ground (desktop) or null
-//   events    : queue of { skill, dir?: Vector3, mag?: number }   (dir = world-space aim, omitted => auto-aim)
-//   aiming    : { skill, dir, mag } while a skill button is being dragged (touch) -> indicator preview
+// Player controller (PC MOBA scheme). Turns mouse / keyboard / touch into hero commands — nothing here touches game state directly.
+//   Right click      move there · on an enemy: attack it          Mouse   aims everything
+//   Space (hold)     basic attack toward the cursor               Q W E R hold = aim preview, release = cast at the cursor
+//   1 2 3 4          spend a skill point on Q W E R               B       recall to base      S  stop      C / P  shop
+//   Touch            joystick moves, round buttons cast (drag a button to aim)
 import * as THREE from 'three';
 
-const KEYS = { KeyQ: 's1', KeyE: 's2', KeyR: 's3', KeyF: 'ult', Digit1: 's1', Digit2: 's2', Digit3: 's3', Digit4: 'ult' };
+const SKILL = { KeyQ: 'q', KeyW: 'w', KeyE: 'e', KeyR: 'r' }, LEVEL = { Digit1: 'q', Digit2: 'w', Digit3: 'e', Digit4: 'r' };
 
 export class Input {
-  constructor(dom, rig) {
-    this.rig = rig; this.move = new THREE.Vector2(); this.stick = new THREE.Vector2(); this.aimPoint = null; this.moveTo = null;
-    this.events = []; this.aiming = null; this.basicHeld = false; this.touch = matchMedia('(pointer:coarse)').matches;
-    const keys = this.keys = new Set(), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+  constructor(dom, rig, game) {
+    Object.assign(this, { rig, game, cmds: [], attackHeld: false, aim: null, aimKey: null, keepTarget: true, hero: null });
+    this.stick = new THREE.Vector2(); this.touch = matchMedia('(pointer:coarse)').matches;
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
     const ground = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, rig.camera); return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null; };
-    addEventListener('keydown', (e) => {
-      if (e.repeat) return; keys.add(e.code);
-      if (KEYS[e.code]) this.cast(KEYS[e.code], this.mouseDir()); if (e.code === 'Space' || e.code === 'KeyJ') this.keyBasic = true;
-      if (e.code === 'KeyT') this.events.push({ skill: 'taunt' });
-    });
-    addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Space' || e.code === 'KeyJ') this.keyBasic = false; });
-    addEventListener('blur', () => { keys.clear(); this.keyBasic = this.mouseBasic = false; });
-    dom.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.aimPoint = ground(e); if (this.rmb) this.moveTo = this.aimPoint; } });
-    dom.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'mouse') return; this.aimPoint = ground(e);
-      if (e.button === 0) this.mouseBasic = true; if (e.button === 2) { this.rmb = true; this.moveTo = this.aimPoint; }
-    });
-    addEventListener('pointerup', (e) => { if (e.button === 0) this.mouseBasic = false; if (e.button === 2) this.rmb = false; });
+    const order = (p, fresh) => {
+      if (!p) return; const game = this.game, tg = game.nearest(game.playerTeam, p, 1.7);
+      if (tg) { if (fresh) { this.cmds.push({ t: 'attack', target: tg }); game.vfx.ring(tg.pos, { r0: tg.radius + 1.2, r1: tg.radius + 0.3, dur: 0.25, k: 2.6, color: new THREE.Color(0xff5a3c) }); } }
+      else { this.cmds.push({ t: 'move', x: p.x, z: p.z }); if (fresh) game.vfx.ring(p, { r0: 1.3, r1: 0.25, dur: 0.3, k: 2.2, color: new THREE.Color(0x6dff8a) }); }
+    };
+    let rmb = false, last = 0;
+    dom.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; this.aim = ground(e); if (rmb && performance.now() - last > 140) { last = performance.now(); order(this.aim, false); } });
+    dom.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; this.aim = ground(e); if (e.button === 2) { rmb = true; last = performance.now(); order(this.aim, true); } });
+    addEventListener('pointerup', (e) => { if (e.button === 2) rmb = false; });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
     dom.addEventListener('wheel', (e) => { rig.distGoal = THREE.MathUtils.clamp(rig.distGoal + Math.sign(e.deltaY) * 3, 34, 66); }, { passive: true });
+    addEventListener('keydown', (e) => {
+      if (e.repeat || e.ctrlKey || e.metaKey) return;
+      if (e.code === 'Space') { e.preventDefault(); this.attackHeld = true; }
+      else if (SKILL[e.code]) this.aimKey = SKILL[e.code];
+      else if (LEVEL[e.code]) this.cmds.push({ t: 'level', k: LEVEL[e.code] });
+      else if (e.code === 'KeyB') this.cmds.push({ t: 'recall' }); else if (e.code === 'KeyS') this.cmds.push({ t: 'stop' });
+    });
+    addEventListener('keyup', (e) => {
+      if (e.code === 'Space') this.attackHeld = this.btnBasic || false;
+      else if (SKILL[e.code] && this.aimKey === SKILL[e.code]) { this.cmds.push({ t: 'cast', k: this.aimKey, point: this.aim ? { x: this.aim.x, z: this.aim.z } : null }); this.aimKey = null; }
+    });
+    addEventListener('blur', () => { this.attackHeld = false; this.aimKey = null; rmb = false; });
   }
-  heroPos = null;
-  mouseDir() { if (!this.aimPoint || !this.heroPos || this.touch) return null; const d = this.aimPoint.clone().sub(this.heroPos); d.y = 0; const m = d.length(); return m > 0.3 ? { dir: d.normalize(), mag: m } : null; }
-  cast(skill, aim) { this.events.push({ skill, dir: aim?.dir ?? null, mag: aim?.mag ?? null }); }
-  // screen-space drag (px, y down) -> world direction on the ground
+  // screen-space drag (px, y down) -> world direction on the ground (touch aiming)
   screenDir(dx, dy) { return new THREE.Vector3().addScaledVector(this.rig.right, dx).addScaledVector(this.rig.fwd, -dy).normalize(); }
-  update() {
-    const k = this.keys; let x = 0, y = 0;
-    if (k.has('KeyW') || k.has('ArrowUp')) y += 1; if (k.has('KeyS') || k.has('ArrowDown')) y -= 1;
-    if (k.has('KeyD') || k.has('ArrowRight')) x += 1; if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
-    if (x || y) { this.move.set(x, y).normalize(); this.moveTo = null; } else this.move.copy(this.stick);
-    this.basicHeld = !!(this.keyBasic || this.mouseBasic || this.btnBasic);
-  }
+  // touch buttons: cast toward a dragged direction (or auto-aim when just tapped)
+  touchCast(k, dir, mag) { const h = this.hero; if (!h) return; const r = h.skills[k].range || 0; this.cmds.push({ t: 'cast', k, point: dir ? { x: h.pos.x + dir.x * r * mag, z: h.pos.z + dir.z * r * mag } : null }); }
 }

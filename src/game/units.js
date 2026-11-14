@@ -8,10 +8,10 @@ import { Bar } from './vfx.js';
 import { clamp } from '../core/util.js';
 
 const PI = Math.PI, _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
-const box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl = (a, b, h, n = 8) => new THREE.CylinderGeometry(a, b, h, n), ico = (r, d = 1) => new THREE.IcosahedronGeometry(r, d), cone = (r, h, n = 6) => new THREE.ConeGeometry(r, h, n);
+export const box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl = (a, b, h, n = 8) => new THREE.CylinderGeometry(a, b, h, n), ico = (r, d = 1) => new THREE.IcosahedronGeometry(r, d), cone = (r, h, n = 6) => new THREE.ConeGeometry(r, h, n);
 
 // character material: vertex colour albedo + per-vertex glow mask tinted by the faction colour, plus a rim light
-function unitMat(glow, rim = 0.3) {
+export function unitMat(glow, rim = 0.3) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.25, envMapIntensity: 1.3 });
   const u = { uGlowCol: { value: new THREE.Color(glow) }, uGlow: { value: 2.3 }, uRim: { value: rim } };
   m.onBeforeCompile = (s) => {
@@ -25,7 +25,7 @@ function unitMat(glow, rim = 0.3) {
 export const UMAT = { axiom: unitMat(0x2fe4ff), ekoo: unitMat(0xff9a2e), vessari: unitMat(0xa55cff, 0.5) };
 const FLASH = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.95, 0.95) });   // hit flash (kept under the bloom threshold)
 
-class Parts {
+export class Parts {
   l = [];
   add(geo, p, c, { r = [0, 0, 0], s = 1, g = 0 } = {}) {
     const x = geo.index ? geo.toNonIndexed() : geo;
@@ -39,7 +39,7 @@ class Parts {
   mesh(mat, name, at) { const m = new THREE.Mesh(mergeGeometries(this.l), mat); m.castShadow = true; m.name = name; this.l = []; if (at) m.position.fromArray(at); return m; }
 }
 // humanoid rig: body + 2 arms + 2 legs hanging from pivots
-function rig(root, mat, P, { body, armR, armL, leg, sh, hip, scale = 1 }) {
+export function rig(root, mat, P, { body, armR, armL, leg, sh, hip, scale = 1 }) {
   body(P); root.add(P.mesh(mat, 'body'));
   armR(P); root.add(P.mesh(mat, 'armR', [-sh[0], sh[1], 0])); armL(P); root.add(P.mesh(mat, 'armL', [sh[0], sh[1], 0]));
   leg(P); const l = P.mesh(mat, 'legR', [-hip[0], hip[1], 0]), l2 = l.clone(); l2.name = 'legL'; l2.position.x = hip[0]; root.add(l, l2);
@@ -119,6 +119,39 @@ const BUILD = {
     root.scale.setScalar(1.3); return root;
   },
 };
+// --- Cão de Sucata: feral scrap hound twisted by the rifts (small farm camp)
+BUILD.cao = (mat) => {
+  const R = 0x9a4e28, I = 0x35302e, G = 0xeedfff, P = new Parts(), root = new THREE.Group();
+  P.add(box(0.5, 0.42, 1.1), [0, 0.72, 0], R).add(box(0.56, 0.3, 0.5), [0, 0.86, 0.3], I).add(box(0.36, 0.34, 0.5), [0, 0.8, 0.82], I).add(box(0.26, 0.14, 0.3), [0, 0.68, 1.12], R)
+    .add(cone(0.09, 0.7, 4), [0, 0.86, -0.85], I, { r: [-1.2, 0, 0] });
+  for (const s of [-1, 1]) P.add(box(0.1, 0.05, 0.05), [s * 0.11, 0.86, 1.08], G, { g: 2 }).add(cone(0.06, 0.24, 4), [s * 0.14, 1.02, 0.7], I, { r: [-0.3, 0, s * 0.3] }).add(box(0.03, 0.03, 0.9), [s * 0.27, 0.74, 0], G, { g: 0.8 });
+  for (const z of [0.3, -0.05, -0.4]) P.add(cone(0.07, 0.3, 4), [0, 1.06, z], I, { r: [-0.4, 0, 0] });
+  root.add(P.mesh(mat, 'body'));
+  P.add(box(0.13, 0.4, 0.15), [0, -0.2, 0], I).add(box(0.1, 0.34, 0.12), [0, -0.5, 0.04], R); const leg = P.mesh(mat, 'leg');
+  [[0.24, 0.42], [-0.24, 0.42], [0.24, -0.42], [-0.24, -0.42]].forEach(([x, z], i) => { const l = i ? leg.clone() : leg; l.name = 'leg' + i; l.position.set(x, 0.64, z); root.add(l); });
+  root.scale.setScalar(1.15); return root;
+};
+// --- Faísca da Fenda: floating shard-wisp (ranged)
+BUILD.faisca = (mat) => {
+  const D = 0x1c1626, G = 0xeedfff, P = new Parts(), root = new THREE.Group();
+  P.add(ico(0.34), [0, 0, 0], G, { g: 1.7 }).add(ico(0.5, 0), [0, 0, 0], D, { s: [1, 1.25, 1] });
+  for (let i = 0; i < 6; i++) { const a = i * 1.05; P.add(cone(0.1, 0.7, 4), [Math.cos(a) * 0.75, Math.sin(i * 2.1) * 0.3, Math.sin(a) * 0.75], i % 2 ? D : G, { r: [Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2], g: i % 2 ? 0 : 1.1 }); }
+  root.add(P.mesh(mat, 'body', [0, 1.9, 0])); root.scale.setScalar(1.1); return root;
+};
+// --- Colosso Colheitadeira: a rogue AXIOM siege harvester, rift-corrupted (buff: Sobrecarga)
+BUILD.colosso = (mat) => {
+  const W = 0xc9d2dc, N = 0x1c2a3c, I = 0x2a2e34, G = 0xeedfff, P = new Parts(), root = new THREE.Group();
+  P.add(box(1.5, 0.7, 2.2), [0, 1.0, 0], W).add(box(1.1, 0.6, 1.2), [0, 1.6, -0.3], W).add(box(1.56, 0.2, 2.3), [0, 0.62, 0], N).add(box(0.9, 0.16, 0.9), [0, 1.98, -0.3], N)
+    .add(cyl(0.2, 0.26, 1.5, 8), [0.1, 1.75, 0.8], I, { r: [PI / 2 - 0.12, 0, 0] }).add(cyl(0.12, 0.12, 0.2, 8), [0.1, 1.84, 1.56], G, { r: [PI / 2 - 0.12, 0, 0], g: 1.6 })
+    .add(box(0.5, 0.08, 0.06), [0, 1.3, 1.11], G, { g: 1.5 }).add(box(1.52, 0.06, 0.06), [0, 1.36, 0.6], G, { g: 0.9 });
+  for (const s of [-1, 1]) { P.add(box(0.45, 0.62, 2.5), [s * 0.98, 0.42, 0], I).add(box(0.5, 0.1, 2.56), [s * 0.98, 0.75, 0], N);
+    for (let i = 0; i < 5; i++) P.add(cyl(0.22, 0.22, 0.5, 8), [s * 0.98, 0.3, -1 + i * 0.5], N, { r: [0, 0, PI / 2] }); }
+  root.add(P.mesh(mat, 'body'));
+  P.add(box(0.2, 0.2, 1.1), [0, 0, 0.55], W).add(box(0.1, 0.5, 1.5), [0, -0.2, 1.7], W, { r: [0.25, 0, 0] }).add(box(0.05, 0.1, 1.3), [0, -0.5, 1.8], G, { r: [0.25, 0, 0], g: 1.2 }).add(cone(0.12, 0.5, 4), [0, -0.42, 2.5], W, { r: [PI / 2 + 0.25, 0, 0] });
+  const claw = P.mesh(mat, 'armR', [-0.62, 0.95, 0.9]), c2 = claw.clone(); c2.name = 'armL'; c2.position.x = 0.62; root.add(claw, c2);
+  root.scale.setScalar(1.35); return root;
+};
+BUILD.anciao = (mat) => { const r = BUILD.eco(mat); r.scale.setScalar(2.1); return r; };       // Eco Ancião (buff: Sinal Limpo)
 const TEMPLATE = {};
 function model(kind, matKey) { const k = kind + matKey; if (!TEMPLATE[k]) TEMPLATE[k] = BUILD[kind](UMAT[matKey]); return TEMPLATE[k].clone(); }
 
@@ -127,7 +160,11 @@ export const KINDS = {
   saque: { hp: 520, atk: 44, cd: 1.0, wind: 0.28, range: 1.5, speed: 4.3, radius: 0.75, barY: 3.3, aggro: 8.5 },
   drone: { hp: 300, atk: 50, cd: 1.4, wind: 0.3, range: 8.5, speed: 4.3, radius: 0.6, barY: 3.9, aggro: 10, ranged: true, fly: true },
   arq: { hp: 300, atk: 50, cd: 1.4, wind: 0.42, range: 8.5, speed: 4.3, radius: 0.6, barY: 3.0, aggro: 10, ranged: true },
-  eco: { hp: 780, atk: 46, cd: 1.15, wind: 0.3, range: 1.7, speed: 5.2, radius: 0.95, barY: 2.6, aggro: 8.5 },
+  eco: { hp: 780, atk: 46, cd: 1.15, wind: 0.3, range: 1.7, speed: 5.2, radius: 0.95, barY: 2.6, aggro: 8.5, quad: true },
+  cao: { hp: 430, atk: 30, cd: 0.9, wind: 0.22, range: 1.4, speed: 6, radius: 0.7, barY: 2.0, aggro: 7, quad: true },
+  faisca: { hp: 280, atk: 36, cd: 1.5, wind: 0.35, range: 7.5, speed: 4.4, radius: 0.6, barY: 3.2, aggro: 8, ranged: true, fly: true, hover: 1.9 },
+  colosso: { hp: 2700, atk: 95, cd: 1.5, wind: 0.5, range: 2.6, speed: 3.6, radius: 1.9, barY: 4.3, aggro: 8, big: true },
+  anciao: { hp: 2500, atk: 85, cd: 1.3, wind: 0.4, range: 2.4, speed: 4.6, radius: 1.6, barY: 4.4, aggro: 8, quad: true, big: true },
 };
 const BAR_COL = { ally: 0x3fc8ff, enemy: 0xff5236, neutral: 0xb070ff };
 
@@ -141,7 +178,7 @@ export class Unit {
     const g = this.g = model(kind, look); this.p = {}; this.meshes = [];
     g.traverse((o) => { if (o.name) this.p[o.name] = o; if (o.isMesh) this.meshes.push(o); }); this.mat = this.meshes[0].material;
     g.position.copy(this.pos); g.rotation.y = this.yaw; game.scene.add(g); this.baseScale = g.scale.x;
-    this.bar = new Bar(game.scene, kind === 'eco' ? 1.9 : 1.5, BAR_COL[team === 'axiom' ? 'ally' : team === 'ekoo' ? 'enemy' : 'neutral'], 0.17);
+    this.bar = new Bar(game.scene, K.big ? 3.2 : kind === 'eco' ? 1.9 : 1.5, BAR_COL[team === 'axiom' ? 'ally' : team === 'ekoo' ? 'enemy' : 'neutral'], 0.17);
   }
   hurt(dmg, src) { this.flashT = 0.07; for (const m of this.meshes) m.material = FLASH; if (this.camp) { this.aggro = src; this.camp.lastHit = src; } }
   die(src) { this.killer = src; this.bar.g.visible = false; if (this.camp) this.camp.lastHit = src; }
@@ -153,13 +190,18 @@ export class Unit {
     }
     return g.nearest(this.team, this.pos, this.K.aggro);
   }
+  // lane units flow around towers instead of grinding against them
+  avoid(g, mz) {
+    for (const tw of g.towers) { if (!tw.alive) continue; const dx = tw.pos.x - this.pos.x; if (dx * this.dir > -1.5 && dx * this.dir < 7.5 && Math.abs(this.pos.z) < 4.4) return clamp(((this.pos.z >= 0 ? 4.9 : -4.9) - this.pos.z) * 0.9, -1, 1); }
+    return mz;
+  }
   update(dt, g) {
     const K = this.K, P = this.p, G = this.g;
     if (this.flashT > 0 && (this.flashT -= dt) <= 0) for (const m of this.meshes) m.material = this.mat;
     if (!this.alive) {                                             // collapse, sink, vanish
       const t = this.deadT += dt, k = Math.min(1, t * 2.4);
       if (K.fly) { G.position.y = -Math.min(1.9, t * t * 9); G.rotation.z += dt * 7; G.rotation.x = k * 0.6; }
-      else if (this.kind === 'eco') { G.scale.setScalar(this.baseScale * Math.max(0.01, 1 - t * 1.3)); G.position.y = t * 0.8; G.rotation.y += dt * 9; }
+      else if (K.quad) { G.scale.setScalar(this.baseScale * Math.max(0.01, 1 - t * 1.3)); G.position.y = t * 0.8; G.rotation.y += dt * 9; }
       else { G.rotation.x = -k * 1.5; G.position.y = -Math.max(0, t - 0.7) * 1.2 + k * 0.1; }
       if (t > 1.5) { g.scene.remove(G); g.scene.remove(this.bar.g); this.gone = true; }
       return;
@@ -173,7 +215,7 @@ export class Unit {
       const dx = tg.pos.x - this.pos.x, dz = tg.pos.z - this.pos.z, d = Math.hypot(dx, dz) || 1, reach = K.range + tg.radius + this.radius * 0.4;
       this.face(dx, dz, dt, 12);
       if (d > reach) { mx = dx / d; mz = dz / d; moving = true; } else if (this.cd <= 0 && this.atkT < 0) { this.atkT = K.wind; this.cd = K.cd; }
-    } else if (this.lane) { mx = this.dir; mz = clamp((this.laneZ - this.pos.z) * 0.5, -0.7, 0.7); moving = true; this.face(mx, mz, dt, 6); }
+    } else if (this.lane) { mx = this.dir; mz = this.avoid(g, clamp((this.laneZ - this.pos.z) * 0.5, -0.7, 0.7)); moving = true; this.face(mx, mz, dt, 6); }
     else {                                                         // camp creature: walk home, recover
       const dx = this.home.x - this.pos.x, dz = this.home.z - this.pos.z, d = Math.hypot(dx, dz);
       if (d > 0.6) { mx = dx / d; mz = dz / d; moving = true; this.face(mx, mz, dt, 8); this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25 * dt); }
@@ -193,10 +235,11 @@ export class Unit {
     const t = g.t + this.seed, wind = this.atkT >= 0 ? 1 - this.atkT / K.wind : 0, sw = this.swing;
     if (moving) this.phase += K.speed * slow * dt * 2.3; const st = moving ? Math.sin(this.phase) * 0.75 : 0;
     G.position.set(this.pos.x, 0, this.pos.z); G.rotation.set(0, this.yaw, 0); G.scale.setScalar(this.baseScale * (1 - this.spawnT * 1.2));
-    if (K.fly) { P.body.position.y = 2.1 + Math.sin(t * 3) * 0.12; P.body.rotation.set((moving ? 0.2 : 0) - sw * 0.35, 0, Math.sin(t * 1.7) * 0.08); }
-    else if (this.kind === 'eco') {
+    if (K.fly) { P.body.position.y = (K.hover || 2.1) + Math.sin(t * 3) * 0.12; P.body.rotation.set((moving ? 0.2 : 0) - sw * 0.35, K.hover ? t * 1.4 : 0, Math.sin(t * 1.7) * 0.08); }
+    else if (this.kind === 'colosso') { P.body.position.y = Math.sin(t * 9) * 0.015; P.armR.rotation.x = -wind * 0.9 + sw * 0.5; P.armL.rotation.x = -wind * 0.6 + sw * 0.5; P.body.rotation.x = sw * 0.08; }
+    else if (K.quad) {
       for (let i = 0; i < 4; i++) P['leg' + i].rotation.x = (i === 0 || i === 3 ? st : -st);
-      for (let i = 0; i < 5; i++) { const o = P['ten' + i]; o.rotation.set(-0.5 + Math.sin(t * 2.1 + i * 1.3) * 0.3, 0, o.userData.rz + Math.sin(t * 1.6 + i * 2) * 0.28); }
+      for (let i = 0; i < 5; i++) { const o = P['ten' + i]; if (!o) break; o.rotation.set(-0.5 + Math.sin(t * 2.1 + i * 1.3) * 0.3, 0, o.userData.rz + Math.sin(t * 1.6 + i * 2) * 0.28); }
       P.body.rotation.x = wind * -0.35 + sw * 0.4; P.body.position.set(0, Math.abs(st) * 0.06, sw * 0.5);
     } else {
       P.legL.rotation.x = st; P.legR.rotation.x = -st; P.body.position.y = Math.abs(st) * 0.05; P.body.rotation.x = wind * -0.12 + sw * 0.3;
