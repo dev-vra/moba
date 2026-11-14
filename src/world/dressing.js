@@ -33,13 +33,18 @@ export async function dress(scene, renderer) {
       o.position.set(x, heightAt(x, z), z); o.rotation.y = R() * Math.PI * 2; scene.add(o);
     }).catch((e) => console.warn('[props]', id, e.message)));
   };
-  // aglomerado: ~n peças em volta de (cx,cz) — props pequenos só leem em grupo
-  const cluster = (list, cx, cz, n, r = 2.2) => { for (let i = 0; i < n; i++) { const a = R() * 6.28, d = R() * r; place(pick(list), cx + Math.cos(a) * d, cz + Math.sin(a) * d); } };
+  // aglomerado: re-sorteia até achar chão fora da navegação (antes ~metade era descartada na borda da lane)
+  const cluster = (list, cx, cz, n, r = 2.2) => {
+    for (let i = 0; i < n; i++) for (let k = 0; k < 8; k++) {
+      const a = R() * 6.28, d = R() * r * (1 + k * 0.25), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (navDist(x, z) > 1.4) { place(pick(list), x, z); break; }
+    }
+  };
 
   // bordas da lane: sucata do lado EKOO, infraestrutura AXIOM do outro
   for (let i = 0; i < 9; i++) {
-    const t = TOWER_X * 0.5 + R() * (BASE_X - TOWER_X * 0.5 - 14), zs = R() < 0.5 ? -1 : 1, z = zs * (8.5 + R() * 3);
-    cluster(EKOO, t, z, 3); cluster(AXIOM, -t, z, 2, 1.6);
+    const t = TOWER_X * 0.5 + R() * (BASE_X - TOWER_X * 0.5 - 14), zs = R() < 0.5 ? -1 : 1, z = zs * (11 + R() * 4);
+    cluster(EKOO, t, z, 4); cluster(AXIOM, -t, z, 3, 1.8);
   }
   place(['ekoo', 'stone_fire_pit', MED], BASE_X - 18, 10); cluster(EKOO, BASE_X - 18, 13, 4);
   place(['mid', 'covered_car', BIG], 10, 13.5); place(['mid', 'covered_car', BIG], -12, -14);
