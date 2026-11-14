@@ -6,11 +6,11 @@ import * as THREE from 'three';
 import { Unit } from './units.js';
 import { Tower } from './towers.js';
 import { C_AMBER, C_CYAN, C_VIOLET, C_WHITE } from './vfx.js';
-import { CAMPS, BLOCKERS, clamp, widen, inBrush } from '../core/util.js';
+import { CAMPS, BLOCKERS, clamp, widen, inBrush, LANES, LANE_IDS, laneFrame } from '../core/util.js';
 import { REWARD } from './items.js';
 
 export const TEAM_COL = { axiom: C_CYAN, ekoo: C_AMBER, vessari: C_VIOLET };
-const WAVE_EVERY = 25, MAX_UNITS = 70;
+const WAVE_EVERY = 25, MAX_UNITS = 160;
 export const BUFFS = {
   power: { name: 'SOBRECARGA', desc: '+18% de dano causado', dur: 80, color: 0xff7a3c },
   signal: { name: 'SINAL LIMPO', desc: '−20% recarga, +energia', dur: 80, color: 0x8a6cff },
@@ -37,15 +37,15 @@ export class Game {
     this.shotPool = Array.from({ length: 36 }, () => { const m = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ color: 0xffffff })); m.visible = false; m.layers.set(1); scene.add(m); return m; });
   }
   start() {
-    this.towers = [this.add(new Tower(this, 'axiom')), this.add(new Tower(this, 'ekoo')), this.add(new Tower(this, 'axiom', true)), this.add(new Tower(this, 'ekoo', true))];
+    this.towers = [...LANE_IDS.flatMap((l) => [this.add(new Tower(this, 'axiom', false, l)), this.add(new Tower(this, 'ekoo', false, l))]), this.add(new Tower(this, 'axiom', true)), this.add(new Tower(this, 'ekoo', true))];
     for (const tw of this.towers) BLOCKERS.push({ x: tw.pos.x, z: tw.pos.z, r: tw.radius, on: () => tw.alive });
     this.camps = CAMPS.map((c) => new Camp(this, c));
   }
   add(e) { this.ents.push(e); if (e.isHero) this.heroes.push(e); return e; }
   // a core cannot be hurt while its outer tower stands
-  guarded(core) { return core.isCore && this.towers.some((t) => !t.isCore && t.team === core.team && t.alive); }
+  guarded(core) { return core.isCore && this.towers.filter((t) => !t.isCore && t.team === core.team).every((t) => t.alive); }   // basta derrubar a torre de UMA lane
   // the structure a team must attack next / defend first
-  front(team) { return this.towers.find((t) => t.team === team && !t.isCore && t.alive) || this.towers.find((t) => t.team === team && t.isCore); }
+  front(team, lane = 'mid') { return this.towers.find((t) => t.team === team && !t.isCore && t.lane === lane && t.alive) || this.towers.find((t) => t.team === team && t.isCore); }
   spawn(kind, team, x, z, o) { return this.add(new Unit(this, kind, team, x, z, o)); }
   after(delay, fn) { this.timers.push({ t: this.t + delay, fn }); }
   say(text, cls = '') { this.hud?.announce(text, cls); }
@@ -98,7 +98,8 @@ export class Game {
       const rw = REWARD[target.kind]; if (!rw) return;
       for (const h of this.heroes) {                                           // xp for being nearby, gold for the last hit (a share otherwise)
         if (!h.alive || h.team === target.team || Math.hypot(h.pos.x - target.pos.x, h.pos.z - target.pos.z) > 16) continue;
-        h.gainXp(rw[0]); h.gainGold(src === h ? rw[1] : Math.round(rw[1] * 0.3), src === h && h === this.hero ? target.pos : null); if (src === h) h.stat.cs++;
+        const gk = target.laneId === 'bot' ? 1.3 : 1;   // rota de ouro
+        h.gainXp(rw[0]); h.gainGold(Math.round((src === h ? rw[1] : rw[1] * 0.3) * gk), src === h && h === this.hero ? target.pos : null); if (src === h) h.stat.cs++;
       }
     } else if (target.isHero) {
       const kt = target.team === 'axiom' ? 'ekoo' : 'axiom'; if (src.team === 'axiom' || src.team === 'ekoo') this.score[kt]++;
@@ -157,12 +158,13 @@ export class Game {
   // ---- match flow ----
   spawnWave() {
     const n = ++this.wave, count = this.ents.filter((e) => e.isUnit && e.alive).length; if (count > MAX_UNITS) return;
-    for (const team of ['axiom', 'ekoo']) {
-      const s = team === 'axiom' ? -1 : 1, x0 = s * 64, boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
-      [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z, { laneZ: z, boost }));
-      [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z, { laneZ: z, boost }));
-      if (team === 'ekoo' && n >= 3 && n % 2 === 1) this.spawn(melee, team, x0 + s * 1.5, 0, { laneZ: 0, boost });      // EKOO slowly out-scales the lane
-      if (n % 3 === 0) this.spawn(team === 'axiom' ? 'cerco' : 'moto', team, x0 + s * 6, 0, { laneZ: 0, boost });       // siege unit every third wave
+    for (const team of ['axiom', 'ekoo']) for (const lane of LANE_IDS) {
+      const s = team === 'axiom' ? -1 : 1, P = LANES[lane], st = s < 0 ? P[0] : P[P.length - 1], x0 = st[0], z0 = st[1], boost = 1 + Math.max(0, n - 2) * 0.07, melee = team === 'axiom' ? 'hoste' : 'saque', ranged = team === 'axiom' ? 'drone' : 'arq';
+      [-2.4, 0, 2.4].forEach((z, i) => this.spawn(melee, team, x0 - s * (i === 1 ? 1.2 : 0), z0 + z, { laneZ: z, lane, boost }));
+      [-1.4, 1.4].forEach((z) => this.spawn(ranged, team, x0 + s * 3.5, z0 + z, { laneZ: z, lane, boost }));
+      if (team === 'ekoo' && n >= 3 && n % 2 === 1) this.spawn(melee, team, x0 + s * 1.5, z0, { laneZ: 0, lane, boost });      // EKOO slowly out-scales the lane
+      if (lane === 'top') [-1.2, 1.2].forEach((z) => this.spawn(melee, team, x0 + s * 2.5, z0 + z, { laneZ: z, lane, boost }));   // rota de XP: +2 minions
+      if (n % 3 === 0) this.spawn(team === 'axiom' ? 'cerco' : 'moto', team, x0 + s * 6, z0, { laneZ: 0, lane, boost });       // siege unit every third wave
     }
   }
   convert(c, team) {                                  // cleared rift -> its Vessari are pulled into the lane on that team's side
@@ -204,7 +206,10 @@ export class Game {
         if (d < min) { const k = (min - d) * 0.5 / d; a.pos.x -= dx * k; a.pos.z -= dz * k; b.pos.x += dx * k; b.pos.z += dz * k; }
       }
       for (const tw of this.towers) if (tw.alive) { const dx = a.pos.x - tw.pos.x, dz = a.pos.z - tw.pos.z, d = Math.hypot(dx, dz) || 0.01, min = tw.radius + a.radius + 0.3; if (d < min) { a.pos.x += dx / d * (min - d); a.pos.z += dz / d * (min - d); } }
-      if (a.lane) { const lim = 5.4 * widen(a.pos.x); a.pos.z = clamp(a.pos.z, -lim, lim); }
+      if (a.lane) {
+        if (a.laneId === 'mid' || !a.laneId) { const lim = 5.4 * widen(a.pos.x); a.pos.z = clamp(a.pos.z, -lim, lim); }
+        else { const f = laneFrame(a.laneId, a.pos.x, a.pos.z, 1), lim = 5.2; if (Math.abs(f.off) > lim) { const k = f.off - Math.sign(f.off) * lim; a.pos.x -= f.nx * k; a.pos.z -= f.nz * k; } }
+      }
     }
     if (this.ents.some((e) => e.gone)) this.ents = this.ents.filter((e) => !e.gone);
   }

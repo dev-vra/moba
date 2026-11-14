@@ -7,7 +7,7 @@ const br = await puppeteer.launch({ executablePath: exe, headless: 'new', args: 
 const pg = await br.newPage(); await pg.setViewport({ width: 640, height: 360 });
 pg.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 500)));
 pg.on('console', (m) => { if (m.type() === 'error') console.log('[error]', m.text().slice(0, 300)); });
-await pg.goto(`http://localhost:5173/?q=low&grass=0&style=real&speed=${speed}&hero=${hero}`); await pg.waitForFunction('window.__ready', { timeout: 60000 });
+await pg.goto(`http://localhost:${process.env.PORT || 5173}/?q=low&grass=0&style=real&speed=${speed}&hero=${hero}`); await pg.waitForFunction('window.__ready', { timeout: 60000 });
 if (mode === 'bot') await pg.evaluate(async () => { const { Bot } = await import('/src/game/bot.js'); const g = window.__g; g.hero.ctrl = new Bot(1); });
 const t0 = Date.now();
 while (Date.now() - t0 < +secs * 1000) {

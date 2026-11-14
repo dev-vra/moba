@@ -74,6 +74,7 @@ const mate = PLAYABLE.find((k) => k !== pick);
 const DIFF = { easy: { power: 1.0, skill: 0.6 }, normal: { power: 1.22, skill: 1 }, hard: { power: 1.45, skill: 1.4 } }[q.get('diff') || hud.diff || 'normal'];
 hero = await Hero.create(game, scene, rig, vfx, KITS[pick], 'axiom', input, true, 0);
 await Hero.create(game, scene, rig, vfx, KITS[mate], 'axiom', new Bot(0.9), false, 1);
-for (const [i, k] of ['desplugada', 'valvula'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = DIFF.power; e.ctrl.skill = DIFF.skill; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
+await Hero.create(game, scene, rig, vfx, KITS[pick], 'axiom', new Bot(0.9), false, 2);   // 3v3: 3º herói repete um kit até termos mais heróis
+for (const [i, k] of ['desplugada', 'valvula', 'desplugada'].entries()) { const e = await Hero.create(game, scene, rig, vfx, KITS[k], 'ekoo', new Bot(1), false, i); e.power = DIFF.power; e.ctrl.skill = DIFF.skill; e.recalc(); e.hp = e.maxHp; }   // enemy bots hit a little harder than a human-led team
 game.hero = hero; input.hero = hero; hud.setHero(hero); rig.snap(hero.pos.x, hero.pos.z); running = true;
 window.__g = { game, hero, input, vfx, rig, renderer, scene, hud }; window.__ready = true;         // dev / automated tests

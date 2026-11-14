@@ -4,7 +4,7 @@ import './hud.css';
 import { ITEMS, MAX_LEVEL, SLOTS, xpNeed } from '../game/items.js';
 import { RANK_MAX, ULT_AT } from '../game/hero.js';
 import { BUFFS } from '../game/game.js';
-import { PATHS, PATH_R, CAMPS, BRUSH, widen, TOWER_X, BASE_X } from '../core/util.js';
+import { PATHS, PATH_R, CAMPS, BRUSH, widen, TOWER_X, BASE_X, LANES } from '../core/util.js';
 
 const ICON = {
   passive: '<circle cx="16" cy="16" r="9"/><path d="M16 7v18M7 16h18M10 10l12 12M22 10 10 22" />',
@@ -111,6 +111,7 @@ export class HUD {
     x.fillStyle = '#1a241a'; x.fillRect(0, 0, MM.w, MM.h);
     x.fillStyle = '#243024'; for (let i = 0; i < 260; i++) { x.globalAlpha = 0.5; x.beginPath(); x.arc(Math.random() * MM.w, Math.random() * MM.h, 3 + Math.random() * 9, 0, 6.3); x.fill(); } x.globalAlpha = 1;
     x.fillStyle = '#5c5444'; x.beginPath(); for (let wx = -74; wx <= 74; wx += 2) x.lineTo(X(wx), Z(-5.6 * widen(wx))); for (let wx = 74; wx >= -74; wx -= 2) x.lineTo(X(wx), Z(5.6 * widen(wx))); x.fill();
+    x.strokeStyle = '#5c5444'; x.lineWidth = 11 * MM.sx; x.lineJoin = 'round'; for (const id of ['top', 'bot']) { x.beginPath(); LANES[id].forEach(([a, b], i) => (i ? x.lineTo(X(a), Z(b)) : x.moveTo(X(a), Z(b)))); x.stroke(); }
     x.strokeStyle = '#4c4638'; x.lineWidth = PATH_R * 2 * MM.sx; x.lineCap = 'round'; for (const [a, b, c2, d] of PATHS) { x.beginPath(); x.moveTo(X(a), Z(b)); x.lineTo(X(c2), Z(d)); x.stroke(); }
     x.fillStyle = '#6a7a2c'; for (const b of BRUSH) { x.beginPath(); x.arc(X(b.x), Z(b.z), b.r * MM.sx, 0, 6.3); x.fill(); }
     for (const cp of CAMPS) { x.fillStyle = '#3a2c4a'; x.beginPath(); x.arc(X(cp.x), Z(cp.z), cp.r * MM.sx, 0, 6.3); x.fill(); }

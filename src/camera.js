@@ -52,6 +52,6 @@ export function freeCam(rig, dom) {
     if (keys.has('KeyS') || keys.has('ArrowDown')) rig.goal.addScaledVector(rig.fwd, -v);
     if (keys.has('KeyD') || keys.has('ArrowRight')) rig.goal.addScaledVector(rig.right, v);
     if (keys.has('KeyA') || keys.has('ArrowLeft')) rig.goal.addScaledVector(rig.right, -v);
-    rig.goal.x = clamp(rig.goal.x, -76, 76); rig.goal.z = clamp(rig.goal.z, -12, 12);
+    rig.goal.x = clamp(rig.goal.x, -76, 76); rig.goal.z = clamp(rig.goal.z, -60, 60);
   };
 }

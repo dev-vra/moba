@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Bar } from './vfx.js';
-import { clamp } from '../core/util.js';
+import { clamp, laneFrame } from '../core/util.js';
 import { inkHeavy } from '../render/ink.js';
 
 const PI = Math.PI, _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
@@ -184,7 +184,7 @@ const BAR_COL = { ally: 0x3fc8ff, enemy: 0xff5236, neutral: 0xb070ff };
 
 export class Unit {
   constructor(game, kind, team, x, z, { lane = true, laneZ = 0, camp = null, look = team, boost = 1 } = {}) {
-    const K = this.K = KINDS[kind]; Object.assign(this, { game, kind, team, lane, laneZ, camp, alive: true, isUnit: true, radius: K.radius });
+    const K = this.K = KINDS[kind]; Object.assign(this, { game, kind, team, lane: !!lane, laneId: typeof lane === 'string' ? lane : lane ? 'mid' : null, laneZ, camp, alive: true, isUnit: true, radius: K.radius });
     this.pos = new THREE.Vector3(x, 0, z); this.home = { x, z }; this.maxHp = this.hp = Math.round(K.hp * boost); this.atk = K.atk * boost;
     this.dir = team === 'axiom' ? 1 : -1; this.yaw = team === 'vessari' ? Math.atan2(-x, -(z - (camp?.c.z ?? 0))) : this.dir * PI / 2;
     this.cd = Math.random() * 0.5; this.atkT = -1; this.swing = 0; this.think = Math.random() * 0.3; this.phase = Math.random() * 6; this.seed = Math.random() * 10;
@@ -205,9 +205,16 @@ export class Unit {
     return g.nearest(this.team, this.pos, this.K.aggro);
   }
   // lane units flow around towers instead of grinding against them
-  avoid(g, mz) {
-    for (const tw of g.towers) { if (!tw.alive) continue; const dx = tw.pos.x - this.pos.x; const w = tw.radius + 1.9; if (dx * this.dir > -1.5 && dx * this.dir < 8 && Math.abs(this.pos.z) < w) return clamp(((this.pos.z >= 0 ? w + 0.4 : -w - 0.4) - this.pos.z) * 0.9, -1, 1); }
-    return mz;
+  // segue a polilinha da lane (curvas suaves) e contorna torres no referencial local da lane
+  laneMove(g) {
+    const f = laneFrame(this.laneId, this.pos.x, this.pos.z, this.dir);
+    let side = clamp((this.laneZ * (this.dir > 0 ? 1 : -1) - f.off) * 0.5, -0.7, 0.7);
+    for (const tw of g.towers) {
+      if (!tw.alive) continue;
+      const dx = tw.pos.x - this.pos.x, dz = tw.pos.z - this.pos.z, along = dx * f.fx + dz * f.fz, perp = -(dx * f.nx + dz * f.nz), w = tw.radius + 1.9;
+      if (along > -1.5 && along < 8 && Math.abs(perp) < w) { side = clamp(((perp >= 0 ? w + 0.4 : -w - 0.4) - perp) * 0.6, -1, 1); break; }
+    }
+    return [f.fx + f.nx * side, f.fz + f.nz * side];
   }
   update(dt, g) {
     const K = this.K, P = this.p, G = this.g;
@@ -230,7 +237,7 @@ export class Unit {
       const dx = tg.pos.x - this.pos.x, dz = tg.pos.z - this.pos.z, d = Math.hypot(dx, dz) || 1, reach = K.range + tg.radius + this.radius * 0.4;
       this.face(dx, dz, dt, 12);
       if (d > reach) { mx = dx / d; mz = dz / d; moving = true; } else if (this.cd <= 0 && this.atkT < 0) { this.atkT = K.wind; this.cd = K.cd; }
-    } else if (this.lane) { mx = this.dir; mz = this.avoid(g, clamp((this.laneZ - this.pos.z) * 0.5, -0.7, 0.7)); moving = true; this.face(mx, mz, dt, 6); }
+    } else if (this.lane) { [mx, mz] = this.laneMove(g); const l = Math.hypot(mx, mz) || 1; mx /= l; mz /= l; moving = true; this.face(mx, mz, dt, 6); }
     else {                                                         // camp creature: walk home, recover
       const dx = this.home.x - this.pos.x, dz = this.home.z - this.pos.z, d = Math.hypot(dx, dz);
       if (d > 0.6) { mx = dx / d; mz = dz / d; moving = true; this.face(mx, mz, dt, 8); this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25 * dt); }

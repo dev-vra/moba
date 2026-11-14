@@ -2,12 +2,12 @@
 // plus a tint map (large-scale variation, tyre tracks, mud, oil, frost, AXIOM plating) and an emissive mask.
 import * as THREE from 'three';
 import { mk, pbr } from '../core/tex.js';
-import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS, BRUSH } from '../core/util.js';
+import { rng, heightAt, noise, smooth, widen, BASE_X, SPAWN_X, PATHS, PATH_R, CAMPS, BRUSH, LANES } from '../core/util.js';
 
 export const SIZE_X = 230, SIZE_Z = 180;
 export const FARMS = [
-  { x: -54, z: 36, w: 20, d: 11, r: 0.14 }, { x: 12, z: 60, w: 24, d: 11, r: -0.08 }, { x: 54, z: 38, w: 18, d: 11, r: 0.1 },
-  { x: 54, z: -38, w: 20, d: 10, r: 0.12 }, { x: -54, z: -37, w: 20, d: 10, r: -0.1 }, { x: -12, z: -60, w: 22, d: 10, r: 0.06 },
+  { x: -45, z: 34, w: 12, d: 9, r: 0.14 }, { x: 45, z: 35, w: 12, d: 9, r: 0.1 },                 // 3 lanes: fazendas encolhidas p/ dentro
+  { x: 45, z: -35, w: 12, d: 9, r: 0.12 }, { x: -45, z: -34, w: 12, d: 9, r: -0.1 },
 ];
 const PAD = [[-112, -23], [-62, -23], [-54, -14], [-54, 14], [-62, 23], [-112, 23]];
 
@@ -45,6 +45,9 @@ function paintSplat(R) {                       // R = lane dirt, G = gravel / dr
   for (let i = 0; i < 1500; i++) { const a = R() * 6.283, d = Math.sqrt(R()) * 30; p.dab(BASE_X + 6 + Math.cos(a) * d * 1.15, Math.sin(a) * d * 0.85, 2 + R() * 3, '#00ff00', 0.35); }
   for (let wx = -80; wx <= 80; wx += 0.4) for (let j = 0; j < 3; j++) p.dab(wx + R(), (R() * 2 - 1) * 5.2 * widen(wx), 1.6 + R() * 1.6, '#ff0000', 0.45);
   for (let i = 0; i < 60; i++) p.dab((R() - 0.5) * 150, (R() < 0.5 ? -1 : 1) * (7 + R() * 5), 1 + R() * 2, '#ff0000', 0.3);   // worn side paths
+  // lanes laterais (top/bot): terra batida ao longo da polilinha
+  for (const id of ['top', 'bot']) { const P = LANES[id]; for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], L = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L;
+    for (let d = 0; d <= L; d += 0.4) for (let j = 0; j < 3; j++) { const o = (R() * 2 - 1) * 5.2, t = d / L; p.dab(ax + (bx - ax) * t + nx * o + R() - 0.5, az + (bz - az) * t + nz * o + R() - 0.5, 1.6 + R() * 1.6, '#ff0000', 0.45); } } }
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.fillStyle = '#0000ff'; p.poly(PAD); x.fill();
   return tex(p.c, false);
 }

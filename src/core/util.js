@@ -24,17 +24,52 @@ export const BASE_X = 84;           // |x| of each faction base centre
 export const SPAWN_X = 66;          // |x| of spawn pads
 export const TOWER_X = 36;          // |x| of each outer lane tower
 export const CORE_X = 59;           // |x| of each base core (destroy it to win)
+export const SIDE_Z = 54;           // |z| das lanes laterais (top = -, bot = +)
+
+// ---- 3 lanes: polylinhas de AXIOM (x<0) para EKOO (x>0). Todas correm ao longo de x no trecho principal. ----
+export const LANES = {
+  mid: [[-64, 0], [64, 0]],
+  top: [[-60, -9], [-66, -44], [-56, -SIDE_Z], [56, -SIDE_Z], [66, -44], [60, -9]],
+  bot: [[-60, 9], [-66, 44], [-56, SIDE_Z], [56, SIDE_Z], [66, 44], [60, 9]],
+};
+export const LANE_IDS = ['top', 'mid', 'bot'];
+export const laneZ = (id) => (id === 'top' ? -SIDE_Z : id === 'bot' ? SIDE_Z : 0);
+// Referencial local da lane no ponto (x,z) para quem anda no sentido `dir` (+1 AXIOM→EKOO, -1 o contrário):
+// f = direção de avanço, n = normal (esquerda), off = deslocamento lateral do ponto em relação ao eixo.
+const _fr = { fx: 1, fz: 0, nx: 0, nz: 1, off: 0, t: 0 };
+export function laneFrame(id, x, z, dir) {
+  const P = LANES[id]; let best = Infinity, bi = 0, bt = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [ax, az] = P[i], [bx, bz] = P[i + 1], vx = bx - ax, vz = bz - az, L2 = vx * vx + vz * vz;
+    const t = clamp(((x - ax) * vx + (z - az) * vz) / L2, 0, 1), d = (x - ax - vx * t) ** 2 + (z - az - vz * t) ** 2;
+    if (d < best) { best = d; bi = i; bt = t; }
+  }
+  const seg = (i) => { const [ax, az] = P[i], [bx, bz] = P[i + 1], L = Math.hypot(bx - ax, bz - az); return [(bx - ax) / L, (bz - az) / L]; };
+  let [fx, fz] = seg(bi);
+  // perto do fim do segmento (no sentido de marcha), já vira para o próximo: curvas suaves
+  const L = Math.hypot(P[bi + 1][0] - P[bi][0], P[bi + 1][1] - P[bi][1]), toEnd = (dir > 0 ? 1 - bt : bt) * L;
+  const ni = dir > 0 ? bi + 1 : bi - 1;
+  if (toEnd < 6 && ni >= 0 && ni < P.length - 1) { const [gx, gz] = seg(ni), k = 1 - toEnd / 6; fx = fx * (1 - k) + gx * k; fz = fz * (1 - k) + gz * k; const l = Math.hypot(fx, fz); fx /= l; fz /= l; }
+  if (dir < 0) { fx = -fx; fz = -fz; }
+  const [ax, az] = P[bi], [sx, sz] = seg(bi), px = ax + sx * bt * L, pz = az + sz * bt * L;
+  _fr.fx = fx; _fr.fz = fz; _fr.nx = -fz; _fr.nz = fx; _fr.off = (x - px) * _fr.nx + (z - pz) * _fr.nz; _fr.t = bi + bt;
+  return _fr;
+}
 
 // ---- walkable area: lane (wider at tower plazas) + base yards + jungle paths + Vessari camps ----
 export const widen = (x) => 1 + 0.75 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));
+const widenSide = (x) => 30 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));   // praça da torre nas laterais (+3u)
 // Jungle camps. reward: 'convert' (Vessari join the lane), 'power' / 'signal' (hero buff), or none (gold + xp farm).
 export const CAMPS = [
   { id: 'riftN', name: 'Fenda Norte', x: 0, z: -35, r: 8.5, side: -1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
   { id: 'riftS', name: 'Fenda Sul', x: 0, z: 35, r: 8.5, side: 1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
-  { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -48, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
-  { id: 'signal', name: 'Eco Ancião', x: -24, z: 48, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
+  { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
+  { id: 'signal', name: 'Eco Ancião', x: -24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
   { id: 'caesN', name: 'Matilha de Sucata', x: -33, z: -29, r: 5.2, side: -1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
   { id: 'caesS', name: 'Matilha de Sucata', x: 33, z: 29, r: 5.2, side: 1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
+  // rota de ouro (bot): ninhos de farm colados na lane, um de cada lado
+  { id: 'ouroA', name: 'Ninho de Sucata', x: -40, z: 46, r: 4.2, side: 1, kinds: ['cao', 'cao'], respawn: 35 },
+  { id: 'ouroE', name: 'Ninho de Sucata', x: 40, z: 46, r: 4.2, side: 1, kinds: ['cao', 'cao'], respawn: 35 },
   { id: 'faiscasN', name: 'Faíscas da Fenda', x: 33, z: -29, r: 5.2, side: -1, kinds: ['faisca', 'faisca'], respawn: 45 },
   { id: 'faiscasS', name: 'Faíscas da Fenda', x: -33, z: 29, r: 5.2, side: 1, kinds: ['faisca', 'faisca'], respawn: 45 },
 ];
@@ -45,8 +80,10 @@ for (const s of [-1, 1]) for (const m of [-1, 1]) {
   for (let i = 0; i < pts.length - 1; i++) PATHS.push([...pts[i], ...pts[i + 1]]);
   PATHS.push([m * 21.5, s * 19, m * 33, s * 29]);                          // spur to the small farm camps
 }
-PATHS.push([11, -31, 24, -48], [-11, 31, -24, 48]);                        // spurs to the buff camps
-PATHS.push([24, -48, 33, -29], [-24, 48, -33, 29], [-11, -31, -24, -46], [-24, -46, -33, -29], [11, 31, 24, 46], [24, 46, 33, 29]);   // loops: every camp has two exits
+PATHS.push([11, -31, 24, -40], [-11, 31, -24, 40]);                        // spurs to the buff camps
+PATHS.push([24, -40, 33, -29], [-24, 40, -33, 29], [-11, -31, -24, -40], [-24, -40, -33, -29], [11, 31, 24, 40], [24, 40, 33, 29]);
+// selva → lanes laterais: cada quadrante tem uma saída para a lane top/bot (rotas de gank)
+for (const s of [-1, 1]) for (const m of [-1, 1]) PATHS.push([m * 24, s * 40, m * 20, s * 50], [m * 3, s * 35, m * 4, s * 50], [m * 46, s * 22, m * 48, s * 50]);   // loops: every camp has two exits
 for (const s of [-1, 1]) for (const m of [-1, 1]) {
   PATHS.push([m * 33, s * 29, m * 46, s * 22], [m * 46, s * 22, m * 55, s * 13.5]);     // outer ring: farm camp -> side gate of the base
   PATHS.push([m * 41, s * 3, m * 41, s * 14], [m * 41, s * 14, m * 46, s * 22]);        // gank gate just behind the outer tower
@@ -65,6 +102,7 @@ export function navDist(x, z, out) {
     if (d < best) { best = d; if (d > 0) { bx = px + (dx / l) * r; bz = pz + (dz / l) * r; } else { bx = x; bz = z; } }
   };
   if (Math.abs(z) > 4) {
+    for (const id of ['top', 'bot']) { const P = LANES[id]; for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [ex, ez] = P[i + 1], vx = ex - ax, vz = ez - az, t = clamp(((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz), 0, 1); test(ax + vx * t, az + vz * t, LANE_HALF + 0.1 * widenSide(ax + vx * t)); } }
     for (const [ax, az, ex, ez] of PATHS) { const vx = ex - ax, vz = ez - az, t = clamp(((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz), 0, 1); test(ax + vx * t, az + vz * t, PATH_R); }
     for (const c of CAMPS) test(c.x, c.z, c.r);
   }
@@ -100,6 +138,7 @@ function graph() {
   for (const x of [-68, -52, -44, -28, -22, -11, 0, 11, 22, 28, 44, 52, 68]) add(x, 0);
   for (const s of [-1, 1]) for (const z of [-5, 5]) { add(s * TOWER_X, z); add(s * CORE_X, z * 1.3); }                    // slip past either side of a tower / core
   for (const [a, b2, c, d] of PATHS) { add(a, b2); add(c, d); } for (const c of CAMPS) add(c.x, c.z);
+  for (const id of ['top', 'bot']) { for (const [x, z] of LANES[id]) add(x, z); const z = laneZ(id); for (const x of [-44, -28, -12, 12, 28, 44]) add(x, z); for (const sx of [-1, 1]) for (const dz of [-5, 5]) add(sx * TOWER_X, z + dz); }
   EDGES = NODES.map((a, i) => NODES.map((b2, j) => (i !== j && clear(a[0], a[1], b2[0], b2[1]) ? Math.hypot(a[0] - b2[0], a[1] - b2[1]) : 0)));
 }
 export function findPath(from, to) {

@@ -18,7 +18,7 @@ export class Hero {
   static async create(...a) { const h = new Hero(...a); await h.init(); return h; }
   constructor(game, scene, rig, vfx, kit, team, ctrl, isPlayer, slot = 0) {
     Object.assign(this, { game, scene, rig, vfx, kit, team, ctrl, isPlayer, isHero: true, radius: 0.8, alive: true, targetable: true });
-    const s = team === 'axiom' ? -1 : 1; this.spawnPos = new THREE.Vector3(s * SPAWN_X, 0, (slot - 0.5) * 5); this.pos = this.spawnPos.clone(); this.yaw = -s * Math.PI / 2; this.color = TEAM_COL[team];
+    const s = team === 'axiom' ? -1 : 1; this.spawnPos = new THREE.Vector3(s * SPAWN_X, 0, (slot - 1) * 4); this.pos = this.spawnPos.clone(); this.yaw = -s * Math.PI / 2; this.color = TEAM_COL[team];
     this.t = 0; this.level = 1; this.xp = 0; this.gold = 300; this.items = []; this.points = 1; this.ranks = { q: 0, w: 0, e: 0, r: 0 }; this.buffs = { power: 0, signal: 0 }; this.shield = 0; this.energy = 100;
     this.stat = { kills: 0, deaths: 0, dmg: 0, cs: 0 }; this.skills = {}; for (const k of KEYS) this.skills[k] = { ...kit.skills[k], ready: 0, cdNow: 1 };
     this.path = []; this.target = null; this.atkT = 0; this.lock = 0; this.recall = null; this.timers = []; this.respawnAt = 0; this.combatAt = -99; this.repath = 0; this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.hasteMul = 1; this.hidden = { axiom: false, ekoo: false }; this.brush = -1; this.revealUntil = 0; this.vel = 0; this.pull = 0;
