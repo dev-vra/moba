@@ -63,13 +63,13 @@ const widenSide = (x) => 30 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));  
 export const CAMPS = [
   { id: 'riftN', name: 'Fenda Norte', x: 0, z: -30, r: 8.5, side: -1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
   { id: 'riftS', name: 'Fenda Sul', x: 0, z: 30, r: 8.5, side: 1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
-  { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
-  { id: 'signal', name: 'Eco Ancião', x: -24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
+  { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90, first: 15 },
+  { id: 'signal', name: 'Eco Ancião', x: -24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90, first: 15 },
   { id: 'caesN', name: 'Matilha de Sucata', x: -33, z: -29, r: 5.2, side: -1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
   { id: 'caesS', name: 'Matilha de Sucata', x: 33, z: 29, r: 5.2, side: 1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
   // buff duplo: cada metade da selva tem SOBRECARGA e SINAL LIMPO (o caçador faz os dois)
-  { id: 'power2', name: 'Colosso Colheitadeira', x: -24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
-  { id: 'signal2', name: 'Eco Ancião', x: 24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
+  { id: 'power2', name: 'Colosso Colheitadeira', x: -24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90, first: 15 },
+  { id: 'signal2', name: 'Eco Ancião', x: 24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90, first: 15 },
   // objetivos épicos (fossos colados nas lanes laterais), com primeira aparição atrasada
   { id: 'lord', name: 'O QUE ESCUTA', x: 0, z: -46, r: 5, side: -1, kinds: ['lorde'], reward: 'lord', respawn: 180, first: 240, epic: true },
   { id: 'colossus', name: 'COLOSSO DA FENDA', x: 0, z: 46, r: 5, side: 1, kinds: ['tita'], reward: 'team', respawn: 150, first: 120, epic: true },

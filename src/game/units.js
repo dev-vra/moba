@@ -164,11 +164,25 @@ BUILD.moto = (mat) => {
 };
 BUILD.anciao = (mat) => { const r = BUILD.eco(mat); r.scale.setScalar(2.1); return r; };       // Eco Ancião (buff: Sinal Limpo)
 const TEMPLATE = {};
+// Modelos Quaternius (Sci-Fi Essentials) substituem os de código quando carregados; o nó `body` mantém a animação procedural.
+import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
+export async function preloadUnitModels(loader) {
+  try {
+    const g = await loader.loadAsync('/packs/units/Enemy_EyeDrone.glb'), src = g.scene;
+    const box3 = new THREE.Box3().setFromObject(src), size = box3.getSize(new THREE.Vector3()), k = 1.5 / Math.max(size.x, size.z);
+    BUILD.drone = (mat) => {
+      const root = new THREE.Group(), body = new THREE.Group(); body.name = 'body'; root.add(body);
+      const m = skClone(src); m.scale.setScalar(k); m.position.y = -box3.getCenter(new THREE.Vector3()).y * k; m.rotation.y = Math.PI; body.add(m);
+      m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); o.material.emissive = mat.emissive?.clone() ?? new THREE.Color(0x2fe4ff); o.material.emissiveIntensity = 0.35; } });
+      return root;
+    };
+  } catch (e) { console.warn('[units] Quaternius drone indisponível, usando o de código', e.message); }
+}
 const ALIAS = { lorde: ['anciao', 1.9], tita: ['colosso', 1.7] };   // épicos: modelos dos chefes de buff, ampliados
 function model(kind, matKey) {
   const [base, sc] = ALIAS[kind] || [kind, 1], k = base + matKey;
   if (!TEMPLATE[k]) TEMPLATE[k] = BUILD[base](UMAT[matKey]);
-  const m = TEMPLATE[k].clone(); if (sc !== 1) m.scale.multiplyScalar(sc); return m;
+  const m = skClone(TEMPLATE[k]); if (sc !== 1) m.scale.multiplyScalar(sc); return m;
 }
 
 export const KINDS = {

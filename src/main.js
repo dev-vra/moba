@@ -46,6 +46,7 @@ addEventListener('resize', resize); resize();
 const input = new Input(canvas, rig, null);
 const hud = new HUD(input);
 const vfx = new VFX(scene, rig, hud.fx);
+{ const { preloadUnitModels } = await import('./game/units.js'); const { propLoader } = await import('./core/polyprops.js'); await preloadUnitModels(propLoader(renderer)); }
 const game = new Game(scene, vfx, hud); input.game = game; game.playerTeam = 'axiom';
 game.start();                                         // towers + jungle camps; waves start a few seconds in
 let hero = null; rig.snap(-52, 0);

@@ -16,6 +16,7 @@ const SN = 'Stylized_Nature_MegaKit/glTF', USN = 'Ultimate_Stylized_Nature_-_May
 
 // set -> [pasta relativa a X (busca recursiva), nomes]
 export const SETS = {
+  units: [['Sci-Fi_Essentials_Kit/glTF', ['Enemy_EyeDrone', 'Enemy_QuadShell', 'Enemy_Trilobite']]],
   nature: [
     [SN, [...n('CommonTree_', 1, 5), ...n('Pine_', 1, 5), ...n('DeadTree_', 1, 5), ...n('TwistedTree_', 1, 5), 'Bush_Common', 'Bush_Common_Flowers',
       ...n('Rock_Medium_', 1, 3), ...n('Pebble_Round_', 1, 3), ...n('Pebble_Square_', 1, 3), 'Grass_Common_Tall', 'Grass_Common_Short', 'Grass_Wispy_Tall',
