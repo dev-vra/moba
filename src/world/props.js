@@ -70,6 +70,8 @@ export function deadTree(b, R, x, y, z, s = 1) {
   b.pop();
 }
 
+// estilo novo: plantas das estufas viram instâncias Quaternius (nature.js) em vez de bolhas procedurais
+export const plantSink = { fn: null };
 export function greenhouse(b, g, R, x, z, ry, { len = 14, wid = 6, wall = 2.4, roof = 1.7, ruined = false } = {}) {
   const gm = ruined ? M.glassB : M.glassA, fc = ruined ? 0x8f8676 : 0xa9b0a4, y0 = 0.35;
   b.push(x, 0, z, ry); g.push(x, 0, z, ry);
@@ -101,7 +103,8 @@ export function greenhouse(b, g, R, x, z, ry, { len = 14, wid = 6, wall = 2.4, r
     b.add(B(len * 0.82, 0.55, 1.1), M.wood, [0, y0 + 0.27, (s * wid) / 4.2], [0, 0, 0], 0x6e5a48);
     for (let i = 0; i < len * 0.5; i++) {
       const px = (R() - 0.5) * len * 0.78;
-      if (R() < 0.6) bush(b, R, px, y0 + 0.5, (s * wid) / 4.2, 0.55 + R() * 0.5, R() < 0.25 ? 0x4a4a22 : 0x24401f);
+      if (plantSink.fn) { if (R() < 0.85) { const w = new THREE.Vector3(px, y0 + 0.55, (s * wid) / 4.2).applyMatrix4(b.top); plantSink.fn(w.x, w.y, w.z, 0.7 + R() * 0.5); } }
+      else if (R() < 0.6) bush(b, R, px, y0 + 0.5, (s * wid) / 4.2, 0.55 + R() * 0.5, R() < 0.25 ? 0x4a4a22 : 0x24401f);
     }
   }
   b.pop(); g.pop();

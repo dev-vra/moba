@@ -1,5 +1,6 @@
 // Stylized-realistic pipeline: scene (HDR, MSAA) -> GTAO (high) -> subtle emissive bloom -> light grade -> ACES output
 import * as THREE from 'three';
+import { HEAVY } from './ink.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -9,10 +10,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // "HQ" style: hand-inked contour from depth + normal discontinuities (wobbly, fading with distance)
 const InkShader = {
-  uniforms: { tDiffuse: { value: null }, tNormal: { value: null }, tDepth: { value: null }, texel: { value: new THREE.Vector2() }, near: { value: 1 }, far: { value: 300 }, thick: { value: 1.1 }, ink: { value: new THREE.Color(0x0e0c14) } },
+  uniforms: { tDiffuse: { value: null }, tNormal: { value: null }, tDepth: { value: null }, texel: { value: new THREE.Vector2() }, near: { value: 1 }, far: { value: 300 }, thick: { value: 1.1 }, ink: { value: new THREE.Color(0x0e0c14) }, light: { value: 0.32 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse, tNormal, tDepth; uniform vec2 texel; uniform float near, far, thick; uniform vec3 ink; varying vec2 vUv;
+    uniform sampler2D tDiffuse, tNormal, tDepth; uniform vec2 texel; uniform float near, far, thick, light; uniform vec3 ink; varying vec2 vUv;
     float lin(vec2 uv){ float z=texture2D(tDepth,uv).x*2.-1.; return 2.*near*far/(far+near-z*(far-near)); }
     float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     void main(){
@@ -22,6 +23,9 @@ const InkShader = {
       vec3 nA=texture2D(tNormal,uv+o).xyz, nB=texture2D(tNormal,uv-o).xyz, nC=texture2D(tNormal,uv+vec2(-o.x,o.y)).xyz, nD=texture2D(tNormal,uv+vec2(o.x,-o.y)).xyz;
       float e=max(smoothstep(.012,.03,dd), smoothstep(.6,1.1,length(nA-nB)+length(nC-nD)));
       e*=1.-smoothstep(90.,170.,d0);
+      // alpha do G-buffer = peso da tinta: mundo leve, personagens/mobs/torres fortes
+      float wgt=max(max(texture2D(tNormal,uv).a,texture2D(tNormal,uv+o).a),max(texture2D(tNormal,uv-o).a,max(texture2D(tNormal,uv+vec2(-o.x,o.y)).a,texture2D(tNormal,uv+vec2(o.x,-o.y)).a)));
+      e*=mix(light,1.,smoothstep(.5,.9,wgt));
       col.rgb=mix(col.rgb, ink*max(col.rgb,vec3(.02))*6., e*.86);          // ink tinted by what is underneath, never pure black on glows
       gl_FragColor=col;
     }`,
@@ -54,7 +58,7 @@ export function createPost(renderer, scene, camera, quality, flags = {}) {
   composer.addPass(new RenderPass(scene, camera));
 
   // G-buffer for AO: opaque world only (layer 0) so particles / glass / grass never get AO halos
-  let nrt = null, gtao = null, ink = null; const nmat = new THREE.MeshNormalMaterial();
+  let nrt = null, gtao = null, ink = null; const nmat = new THREE.MeshNormalMaterial({ opacity: 0.25 }), nmatH = new THREE.MeshNormalMaterial({ opacity: 1, depthFunc: THREE.LessEqualDepth });
   if (ao || inked) {
     nrt = new THREE.WebGLRenderTarget(size.x, size.y, { depthTexture: new THREE.DepthTexture(size.x, size.y), type: THREE.HalfFloatType });
     nrt.texture.minFilter = nrt.texture.magFilter = THREE.NearestFilter;
@@ -86,7 +90,11 @@ export function createPost(renderer, scene, camera, quality, flags = {}) {
       if (nrt) {
         const bg = scene.background, fog = scene.fog, env = scene.environment; renderer.getClearColor(prev); const pa = renderer.getClearAlpha();
         scene.background = null; scene.fog = null; scene.environment = null; scene.overrideMaterial = nmat; camera.layers.set(0);
-        renderer.setRenderTarget(nrt); renderer.setClearColor(clear, 1); renderer.clear(); renderer.render(scene, camera);
+        renderer.setRenderTarget(nrt); renderer.setClearColor(clear, 0); renderer.clear(); renderer.render(scene, camera);
+        if (ink) { scene.overrideMaterial = nmatH; const ac = renderer.autoClear; renderer.autoClear = false;
+          for (const o of HEAVY) { if (!o.parent) { HEAVY.delete(o); continue; } o.traverse((n) => n.layers.enable(2)); }
+          camera.layers.set(2); renderer.render(scene, camera); camera.layers.set(0);
+          renderer.autoClear = ac; }
         scene.overrideMaterial = null; scene.background = bg; scene.fog = fog; scene.environment = env; camera.layers.enableAll();
         renderer.setRenderTarget(null); renderer.setClearColor(prev, pa);
         renderer.shadowMap.needsUpdate = false;

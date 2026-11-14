@@ -9,6 +9,7 @@ import { clampWalk, findPath, clear, SPAWN_X } from '../core/util.js';
 import { Bar, Indicator, C_WHITE } from './vfx.js';
 import { MAX_LEVEL, SLOTS, xpNeed } from './items.js';
 import { BUFFS, TEAM_COL } from './game.js';
+import { inkHeavy } from '../render/ink.js';
 
 export const KEYS = ['q', 'w', 'e', 'r'], RANK_MAX = 3, ULT_AT = [4, 8, 12];
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();
@@ -24,7 +25,7 @@ export class Hero {
     this.recalc();
   }
   async init() {
-    this.body = await this.kit.build(this); this.root = this.body.root; this.scene.add(this.root);
+    this.body = await this.kit.build(this); this.root = this.body.root; this.scene.add(inkHeavy(this.root));
     const mine = this.team === this.game.playerTeam;
     this.bar = new Bar(this.scene, 2.6, this.isPlayer ? 0x49f07a : mine ? 0x3fc8ff : 0xff5236, 0.26);
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.12, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: (mine ? new THREE.Color(0x2fe4ff) : new THREE.Color(0xff5a2a)).multiplyScalar(1.6), transparent: true, opacity: this.isPlayer ? 0.9 : 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));

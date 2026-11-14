@@ -38,6 +38,9 @@ function droneDecor(scene) {
 
 export function buildWorld(scene, renderer, quality) {
   const R = rng(2049), b = new Batch(), g = new Batch();
+  // estilo Quaternius (?styl=0 volta ao procedural): mesmas posições, modelos instanciados por nature.js
+  const STYL = new URLSearchParams(location.search).get('styl') !== '0', NAT = [];
+  P.plantSink.fn = STYL ? (x, y, z, s) => NAT.push({ kind: 'plant', x, y, z, s, bare: true }) : null;
   const fx = { vents: [], beams: [], smoke: [], fires: [] }, fxj = { rifts: [] }, pools = [];
   scene.background = new THREE.Color(FOG); scene.fog = new THREE.Fog(FOG, 95, 290);
 
@@ -74,22 +77,24 @@ export function buildWorld(scene, renderer, quality) {
   const inFarmP = (x, z) => FARMS.some((f) => Math.abs(x - f.x) < f.w / 2 + 1 && Math.abs(z - f.z) < f.d / 2 + 1);
   for (let i = 0; i < 34; i++) { const x = (R() - 0.5) * 96, z = (R() < 0.5 ? -1 : 1) * (7.2 + R() * 4); if (off(x, z, 1.2)) (R() < 0.5 ? P.barrel : P.crate)(b, R, x, 0, z); }
   for (const [x, z] of [[-15, 9.8], [15, -9.2], [28, 9.4], [-33, -9.6], [48, 9.6]]) P.scrap(b, R, x, z, 0.9);
+  const nat = (kind, fallback) => (b2, R2, x, y, z, s, c) => (STYL ? NAT.push({ kind, x, y, z, s }) : fallback(b2, R2, x, y, z, s, c));
+  const bush = nat('bush', P.bush), rock = nat('rock', P.rock), deadTree = nat('dead', P.deadTree), tree = nat('tree', P.tree);
   for (let i = 0; i < 150; i++) {                                                     // open-field scatter
     const x = (R() - 0.5) * 190, z = (R() < 0.5 ? -1 : 1) * (7.5 + R() * 60), t = smooth(-60, 60, x);
     if ((Math.abs(x) > 56 && Math.abs(z) < 24) || !off(x, z, 1.6) || inFarmP(x, z)) continue;
     const k = R();
-    if (k < 0.55) P.bush(b, R, x, H(x, z), z, 0.8 + R() * 0.9, new THREE.Color().setHSL(lerp(0.29, 0.2, t), 0.34, 0.07 + R() * 0.05).getHex());
-    else if (k < 0.8) P.rock(b, R, x, H(x, z), z, 0.8 + R() * 1.4, 0xd8d4cc);
-    else P.deadTree(b, R, x, H(x, z), z, 0.9 + R() * 0.6);
+    if (k < 0.55) bush(b, R, x, H(x, z), z, 0.8 + R() * 0.9, new THREE.Color().setHSL(lerp(0.29, 0.2, t), 0.34, 0.07 + R() * 0.05).getHex());
+    else if (k < 0.8) rock(b, R, x, H(x, z), z, 0.8 + R() * 1.4, 0xd8d4cc);
+    else deadTree(b, R, x, H(x, z), z, 0.9 + R() * 0.6);
   }
   // ---------- the jungle: overgrowth walls along the trails, Vessari rifts at the camps ----------
   for (let i = 0, n = 0; n < 210 && i < 5000; i++) {
     const x = (R() - 0.5) * 100, z = (R() < 0.5 ? -1 : 1) * (19 + R() * 44), d = navDist(x, z);
     if (d < 2.2 || d > 15 || inFarmP(x, z) || (Math.abs(z) < 25 && Math.abs(x) < 17) || (Math.abs(x) > 27 && Math.abs(z) < 19)) continue;
     if (navDist(x + 1.3, z - 1.9) < 1 || navDist(x + 2.8, z - 4.1) < 1 || navDist(x + 4, z - 5.8) < 0.5) continue;   // never between the camera and walkable ground
-    P.tree(b, R, x, H(x, z), z, 0.9 + R() * 0.7); n++;
-    if (R() < 0.7) P.bush(b, R, x + (R() - 0.5) * 4, H(x, z), z + (R() - 0.5) * 4, 0.9 + R(), 0x1c3018);
-    if (R() < 0.3) P.rock(b, R, x + 2, H(x + 2, z), z + 1, 1 + R() * 1.6, 0xb8b4b0);
+    tree(b, R, x, H(x, z), z, 0.9 + R() * 0.7); n++;
+    if (R() < 0.7) bush(b, R, x + (R() - 0.5) * 4, H(x, z), z + (R() - 0.5) * 4, 0.9 + R(), 0x1c3018);
+    if (R() < 0.3) rock(b, R, x + 2, H(x + 2, z), z + 1, 1 + R() * 1.6, 0xb8b4b0);
   }
   for (const c of CAMPS) {
     if (!c.rift) { for (let i = 0; i < 7; i++) { const a = R() * 6.28, d = c.r + 0.6 + R() * 2; P.rock(b, R, c.x + Math.cos(a) * d, 0, c.z + Math.sin(a) * d, 0.9 + R() * 1.2, 0x8a8494); } continue; }
@@ -139,7 +144,7 @@ export function buildWorld(scene, renderer, quality) {
         transformed.x += sin(uTime * 1.6 + wp.x * .35 + wp.z * .25) * .4 * sway; transformed.z += cos(uTime * 1.2 + wp.x * .2 - wp.z * .3) * .3 * sway;
       #endif`);
   };
-  const NG = new URLSearchParams(location.search).get('grass') === '0' ? 10 : hi ? 60000 : 20000, grass = new THREE.InstancedMesh(blade, grassMat, NG);
+  const NG = new URLSearchParams(location.search).get('grass') === '0' ? 10 : STYL ? (hi ? 16000 : 7000) : hi ? 60000 : 20000, grass = new THREE.InstancedMesh(blade, grassMat, NG);
   const inFarm = (x, z) => FARMS.some((f) => { const c = Math.cos(f.r), s = Math.sin(f.r), u = (x - f.x) * c + (z - f.z) * s, v = -(x - f.x) * s + (z - f.z) * c; return Math.abs(u) < f.w / 2 && Math.abs(v) < f.d / 2; });
   let ng = 0;
   for (let k = 0; ng < NG && k < NG * 6; k++) {
@@ -169,13 +174,14 @@ export function buildWorld(scene, renderer, quality) {
 
   // ---------- milharais: tall corn patches heroes can hide in (fade when the local hero is inside) ----------
   const tall = stalkGeo.clone(); tall.scale(1.5, 2.5, 1.5);
+  const brushMeshes = [];
   const brush = BRUSH.map((z) => {
     const n = Math.round(z.r * z.r * 9), mat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, transparent: true, opacity: 1 }), m = new THREE.InstancedMesh(tall, mat, n);
     for (let i = 0; i < n; i++) {
       const a = R() * 6.283, d = Math.sqrt(R()) * z.r; dummy.position.set(z.x + Math.cos(a) * d, 0, z.z + Math.sin(a) * d); dummy.rotation.set((R() - 0.5) * 0.25, R() * 6.28, (R() - 0.5) * 0.25); dummy.scale.setScalar(0.8 + R() * 0.5); dummy.updateMatrix();
       m.setMatrixAt(i, dummy.matrix); m.setColorAt(i, col.setHSL(0.16 + R() * 0.08, 0.5, 0.22 + R() * 0.14));
     }
-    m.layers.set(1); m.castShadow = true; scene.add(m); return mat;
+    m.layers.set(1); m.castShadow = true; scene.add(m); brushMeshes.push(m); return mat;
   });
 
 
@@ -238,6 +244,7 @@ export function buildWorld(scene, renderer, quality) {
   const drones = [0, 1, 2].map((i) => { const d = droneDecor(scene); d.userData = { r: 13 + i * 4, h: 13 + i * 2.5, sp: 0.35 - i * 0.07, p: i * 2.1 }; return d; });
 
   return {
+    nat: NAT, brushMeshes, grass,
     update(t, dt, focus, dist, cam, zone = -1) {
       brush.forEach((m, i) => { m.opacity += ((i === zone ? 0.35 : 1) - m.opacity) * Math.min(1, dt * 8); });
       // shadow frustum fitted to the visible ground footprint, snapped to texels (no shimmer while panning)

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Bar } from './vfx.js';
 import { clamp } from '../core/util.js';
+import { inkHeavy } from '../render/ink.js';
 
 const PI = Math.PI, _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 export const box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl = (a, b, h, n = 8) => new THREE.CylinderGeometry(a, b, h, n), ico = (r, d = 1) => new THREE.IcosahedronGeometry(r, d), cone = (r, h, n = 6) => new THREE.ConeGeometry(r, h, n);
@@ -190,7 +191,7 @@ export class Unit {
     this.markUntil = 0; this.slowUntil = 0; this.slowK = 1; this.flashT = 0; this.deadT = 0; this.spawnT = 0.5;
     const g = this.g = model(kind, look); this.p = {}; this.meshes = [];
     g.traverse((o) => { if (o.name) this.p[o.name] = o; if (o.isMesh) this.meshes.push(o); }); this.mat = this.meshes[0].material;
-    g.position.copy(this.pos); g.rotation.y = this.yaw; game.scene.add(g); this.baseScale = g.scale.x;
+    g.position.copy(this.pos); g.rotation.y = this.yaw; game.scene.add(inkHeavy(g)); this.baseScale = g.scale.x;
     this.bar = new Bar(game.scene, K.big ? 3.2 : kind === 'eco' ? 1.9 : 1.5, BAR_COL[team === 'axiom' ? 'ally' : team === 'ekoo' ? 'enemy' : 'neutral'], 0.17);
   }
   hurt(dmg, src) { this.flashT = 0.07; for (const m of this.meshes) m.material = FLASH; if (this.camp) { this.aggro = src; this.camp.lastHit = src; } }
