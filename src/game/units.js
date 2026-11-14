@@ -164,7 +164,12 @@ BUILD.moto = (mat) => {
 };
 BUILD.anciao = (mat) => { const r = BUILD.eco(mat); r.scale.setScalar(2.1); return r; };       // Eco Ancião (buff: Sinal Limpo)
 const TEMPLATE = {};
-function model(kind, matKey) { const k = kind + matKey; if (!TEMPLATE[k]) TEMPLATE[k] = BUILD[kind](UMAT[matKey]); return TEMPLATE[k].clone(); }
+const ALIAS = { lorde: ['anciao', 1.9], tita: ['colosso', 1.7] };   // épicos: modelos dos chefes de buff, ampliados
+function model(kind, matKey) {
+  const [base, sc] = ALIAS[kind] || [kind, 1], k = base + matKey;
+  if (!TEMPLATE[k]) TEMPLATE[k] = BUILD[base](UMAT[matKey]);
+  const m = TEMPLATE[k].clone(); if (sc !== 1) m.scale.multiplyScalar(sc); return m;
+}
 
 export const KINDS = {
   hoste: { hp: 520, atk: 44, cd: 1.0, wind: 0.28, range: 1.5, speed: 4.3, radius: 0.7, barY: 3.1, aggro: 8.5 },
@@ -178,6 +183,8 @@ export const KINDS = {
   // siege units: slow, long range, wreck structures (every third wave)
   cerco: { hp: 950, atk: 62, cd: 1.9, wind: 0.5, range: 9.5, speed: 3.7, radius: 1.3, barY: 3.4, aggro: 11, ranged: true, mech: true, siege: 3 },
   moto: { hp: 950, atk: 62, cd: 1.9, wind: 0.5, range: 9.5, speed: 3.7, radius: 1.2, barY: 3.2, aggro: 11, ranged: true, mech: true, wheel: true, siege: 3 },
+  lorde: { hp: 9000, atk: 210, cd: 1.6, wind: 0.5, range: 3.6, speed: 3.4, radius: 3.0, barY: 8.0, aggro: 10, quad: true, big: true, siege: 2 },
+  tita: { hp: 7000, atk: 170, cd: 1.7, wind: 0.55, range: 3.4, speed: 3.2, radius: 3.2, barY: 7.6, aggro: 9, big: true, mech: true },
   anciao: { hp: 2500, atk: 85, cd: 1.3, wind: 0.4, range: 2.4, speed: 4.6, radius: 1.6, barY: 4.4, aggro: 8, quad: true, big: true },
 };
 const BAR_COL = { ally: 0x3fc8ff, enemy: 0xff5236, neutral: 0xb070ff };
@@ -202,7 +209,7 @@ export class Unit {
       if (a && a.alive && a.targetable !== false && Math.hypot(a.pos.x - c.x, a.pos.z - c.z) < c.r + 6) return a;
       this.aggro = null; const n = g.nearest(this.team, this.pos, 6); return n && Math.hypot(n.pos.x - c.x, n.pos.z - c.z) < c.r + 2 ? n : null;
     }
-    return g.nearest(this.team, this.pos, this.K.aggro);
+    return g.nearest(this.team, this.pos, this.K.aggro, (e) => !e.camp);   // minions de lane ignoram monstros da selva
   }
   // lane units flow around towers instead of grinding against them
   // segue a polilinha da lane (curvas suaves) e contorna torres no referencial local da lane

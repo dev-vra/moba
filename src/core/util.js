@@ -61,12 +61,18 @@ export const widen = (x) => 1 + 0.75 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) 
 const widenSide = (x) => 30 * Math.exp(-(((Math.abs(x) - TOWER_X) / 6) ** 2));   // praça da torre nas laterais (+3u)
 // Jungle camps. reward: 'convert' (Vessari join the lane), 'power' / 'signal' (hero buff), or none (gold + xp farm).
 export const CAMPS = [
-  { id: 'riftN', name: 'Fenda Norte', x: 0, z: -35, r: 8.5, side: -1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
-  { id: 'riftS', name: 'Fenda Sul', x: 0, z: 35, r: 8.5, side: 1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
+  { id: 'riftN', name: 'Fenda Norte', x: 0, z: -30, r: 8.5, side: -1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
+  { id: 'riftS', name: 'Fenda Sul', x: 0, z: 30, r: 8.5, side: 1, rift: true, kinds: ['eco', 'eco', 'eco'], reward: 'convert', respawn: 60 },
   { id: 'power', name: 'Colosso Colheitadeira', x: 24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
   { id: 'signal', name: 'Eco Ancião', x: -24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
   { id: 'caesN', name: 'Matilha de Sucata', x: -33, z: -29, r: 5.2, side: -1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
   { id: 'caesS', name: 'Matilha de Sucata', x: 33, z: 29, r: 5.2, side: 1, kinds: ['cao', 'cao', 'cao'], respawn: 45 },
+  // buff duplo: cada metade da selva tem SOBRECARGA e SINAL LIMPO (o caçador faz os dois)
+  { id: 'power2', name: 'Colosso Colheitadeira', x: -24, z: -40, r: 6.8, side: -1, kinds: ['colosso'], reward: 'power', respawn: 90 },
+  { id: 'signal2', name: 'Eco Ancião', x: 24, z: 40, r: 6.8, side: 1, kinds: ['anciao'], reward: 'signal', respawn: 90 },
+  // objetivos épicos (fossos colados nas lanes laterais), com primeira aparição atrasada
+  { id: 'lord', name: 'O QUE ESCUTA', x: 0, z: -46, r: 5, side: -1, kinds: ['lorde'], reward: 'lord', respawn: 180, first: 240, epic: true },
+  { id: 'colossus', name: 'COLOSSO DA FENDA', x: 0, z: 46, r: 5, side: 1, kinds: ['tita'], reward: 'team', respawn: 150, first: 120, epic: true },
   // rota de ouro (bot): ninhos de farm colados na lane, um de cada lado
   { id: 'ouroA', name: 'Ninho de Sucata', x: -40, z: 46, r: 4.2, side: 1, kinds: ['cao', 'cao'], respawn: 35 },
   { id: 'ouroE', name: 'Ninho de Sucata', x: 40, z: 46, r: 4.2, side: 1, kinds: ['cao', 'cao'], respawn: 35 },

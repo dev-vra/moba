@@ -69,7 +69,7 @@ function ekooCore(g) {
 export class Tower {
   constructor(game, team, core = false, lane = 'mid') {
     Object.assign(this, { game, team, lane, isTower: true, isCore: core, alive: true, radius: core ? 3.4 : 2.7, range: core ? 10 : 11.5, atk: core ? 150 : 210, cdMax: 0.95, name: core ? (team === 'axiom' ? 'NÚCLEO AXIOM' : 'TRANSMISSOR EKOO') : (team === 'axiom' ? 'TORRE AXIOM' : 'TORRE EKOO') });
-    this.pos = new THREE.Vector3((team === 'axiom' ? -1 : 1) * (core ? CORE_X : TOWER_X), 0, core ? 0 : laneZ(lane)); this.maxHp = this.hp = core ? 9000 : 7500; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
+    this.pos = new THREE.Vector3((team === 'axiom' ? -1 : 1) * (core ? CORE_X : TOWER_X), 0, core ? 0 : laneZ(lane)); this.maxHp = this.hp = core ? 16000 : 12500; this.cd = 1; this.think = 0; this.ramp = 0; this.markUntil = 0; this.slowUntil = 0; this.deadT = 0;
     const g = this.g = new THREE.Group(); g.position.copy(this.pos); game.scene.add(inkHeavy(g));
     this.fx = core ? (team === 'axiom' ? axiomCore(g) : ekooCore(g)) : team === 'axiom' ? axiomTower(g) : ekooTower(g);
     if (core) { this.bubble = new THREE.Mesh(new THREE.SphereGeometry(4.6, 24, 12, 0, 6.283, 0, 1.75), new THREE.MeshBasicMaterial({ color: team === 'axiom' ? 0x35dcff : 0xffa23a, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); this.bubble.position.y = 4.2; this.bubble.layers.set(1); g.add(this.bubble); } this.color = team === 'axiom' ? C_CYAN : C_AMBER;

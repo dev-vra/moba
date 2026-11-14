@@ -17,14 +17,14 @@ export const BUFFS = {
 };
 
 class Camp {
-  constructor(game, c) { this.game = game; this.c = c; this.units = []; this.respawnAt = 0; this.lastHit = null; this.spawn(); }
+  constructor(game, c) { this.game = game; this.c = c; this.units = []; this.respawnAt = c.first || 0; this.lastHit = null; if (!c.first) this.spawn(); }
   spawn() {
     const c = this.c, n = c.kinds.length;
     this.units = c.kinds.map((k, i) => this.game.spawn(k, 'vessari', c.x + (i - (n - 1) / 2) * 2.9, c.z + c.side * (n > 1 ? 1.6 - Math.abs(i - (n - 1) / 2) * 1.5 : 0.8), { lane: false, camp: this }));
   }
   update(g) {
     if (this.units.length && this.units.every((u) => !u.alive)) { this.units = []; this.respawnAt = g.t + this.c.respawn; g.campTaken(this, this.lastHit); }
-    else if (!this.units.length && this.respawnAt && g.t >= this.respawnAt) { this.respawnAt = 0; this.spawn(); g.vfx.ring({ x: this.c.x, z: this.c.z }, { r1: this.c.r, color: C_VIOLET, dur: 0.7, k: 2.6 }); }
+    else if (!this.units.length && this.respawnAt && g.t >= this.respawnAt) { this.respawnAt = 0; this.spawn(); if (this.c.epic) g.say(`${this.c.name} DESPERTOU`, 'vessari'); g.vfx.ring({ x: this.c.x, z: this.c.z }, { r1: this.c.r, color: C_VIOLET, dur: 0.7, k: 2.6 }); }
   }
 }
 
@@ -114,7 +114,15 @@ export class Game {
     this.campScore[team]++;
     const hero = killer.isHero ? killer : this.heroes.filter((h) => h.alive && h.team === team && Math.hypot(h.pos.x - c.x, h.pos.z - c.z) < 22)[0];
     if (c.reward === 'convert') this.after(0.9, () => this.convert(c, team));
-    else if (c.reward && hero) { hero.addBuff(c.reward); this.say(`${hero.kit.name} absorveu ${BUFFS[c.reward].name}`, team); }
+    else if (c.reward === 'lord') {                 // Lorde: um Vessari colossal passa a empurrar a mid pelo time que o abateu
+      const s = team === 'axiom' ? -1 : 1; this.after(1, () => { const u = this.spawn('lorde', team, s * 30, 0, { lane: 'mid', laneZ: 0, look: team, boost: 1 + this.wave * 0.04 }); this.vfx.ring(u.pos, { r1: 6, color: TEAM_COL[team], dur: 0.8, k: 3 }); });
+      for (const h of this.heroes) if (h.team === team && h.alive) h.addBuff('power');
+      this.say(`${team === 'axiom' ? 'AXIOM' : 'EKOO'} DOMOU O QUE ESCUTA — o Lorde marcha pela mid`, team);
+    } else if (c.reward === 'team') {
+      for (const h of this.heroes) if (h.team === team) { h.gainGold(150); if (h.alive) h.addBuff('signal'); }
+      this.say(`${team === 'axiom' ? 'AXIOM' : 'EKOO'} ABATEU O COLOSSO DA FENDA — +150 ouro e SINAL LIMPO para o time`, team);
+    }
+    else if (BUFFS[c.reward] && hero) { hero.addBuff(c.reward); this.say(`${hero.kit.name} absorveu ${BUFFS[c.reward].name}`, team); }
   }
   stun(target, dur) { if (target.isTower || !target.alive) return; target.stunUntil = this.t + dur; this.vfx.sparks({ x: target.pos.x, y: 2.6, z: target.pos.z }, 10, { color: new THREE.Color(0xffe36a), speed: 3, up: 2, life: dur, size: 0.45, grav: 0.5 }); if (target === this.hero) this.vfx.number(target.pos, 'ATORDOADO', 'hurt'); }
   mark(target, dur) { if (!target.isTower) target.markUntil = this.t + dur; }
