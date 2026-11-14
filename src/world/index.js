@@ -144,7 +144,7 @@ export function buildWorld(scene, renderer, quality) {
         transformed.x += sin(uTime * 1.6 + wp.x * .35 + wp.z * .25) * .4 * sway; transformed.z += cos(uTime * 1.2 + wp.x * .2 - wp.z * .3) * .3 * sway;
       #endif`);
   };
-  const NG = new URLSearchParams(location.search).get('grass') === '0' ? 10 : STYL ? (hi ? 16000 : 7000) : hi ? 60000 : 20000, grass = new THREE.InstancedMesh(blade, grassMat, NG);
+  const NG = new URLSearchParams(location.search).get('grass') === '0' ? 10 : STYL ? 0 : hi ? 60000 : 20000, grass = new THREE.InstancedMesh(blade, grassMat, NG);
   const inFarm = (x, z) => FARMS.some((f) => { const c = Math.cos(f.r), s = Math.sin(f.r), u = (x - f.x) * c + (z - f.z) * s, v = -(x - f.x) * s + (z - f.z) * c; return Math.abs(u) < f.w / 2 && Math.abs(v) < f.d / 2; });
   let ng = 0;
   for (let k = 0; ng < NG && k < NG * 6; k++) {

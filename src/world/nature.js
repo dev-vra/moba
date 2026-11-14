@@ -8,12 +8,13 @@ const T = (...a) => a;
 const CHUNK = 32;
 // tipo -> [modelos, escala base]  (Quaternius ~1u = 1m; nossa câmera pede exagero leve)
 const KINDS = {
-  tree: [T('CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'CommonTree_5', 'U_MapleTree_1', 'U_MapleTree_2', 'U_BirchTree_1', 'Pine_1', 'Pine_2', 'Pine_3'), 1.25],
+  tree: [T('U_MapleTree_1', 'U_MapleTree_2', 'U_MapleTree_3', 'U_BirchTree_1', 'U_BirchTree_3'), 1.25],
   bush: [T('Bush_Common', 'U_Bush_Large', 'U_Bush_Small', 'Bush_Common_Flowers', 'U_Bush_Large_Flowers'), 1.5],
   rock: [T('Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3'), 0.75],
-  dead: [T('DeadTree_1', 'DeadTree_2', 'DeadTree_3', 'U_DeadTree_6', 'U_DeadTree_7', 'U_DeadTree_9'), 1.1],
+  dead: [T('U_DeadTree_6', 'U_DeadTree_7', 'U_DeadTree_9'), 1.1],
   grass: [T('Grass_Common_Tall', 'Grass_Wispy_Tall', 'U_Grass_Large', 'Fern_1', 'Plant_7_Big', 'Flower_3_Group', 'Clover_1'), 1.6],
   plant: [T('Plant_1_Big', 'Fern_1', 'U_Bush_Small', 'Flower_4_Group', 'Plant_7_Big', 'Bush_Common_Flowers'), 1.6],
+  flower: [T('Flower_3_Group', 'Flower_4_Group', 'Clover_1', 'Fern_1', 'Mushroom_Common'), 1.3],
   pebble: [T('Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Square_1', 'Pebble_Square_2'), 1.4],
 };
 
@@ -41,7 +42,7 @@ export async function buildNature(scene, renderer, spots) {
     const tufts = p.bare ? 0 : p.kind === 'tree' ? 3 : p.kind === 'bush' ? 2 : 1;
     for (let i = 0; i < tufts; i++) {
       const x = p.x + (R() - 0.5) * 5, z = p.z + (R() - 0.5) * 5;
-      if (navDist(x, z) > 0.6) add(R() < 0.8 ? 'grass' : 'pebble', x, heightAt(x, z), z, 0.7 + R() * 0.6);
+      if (navDist(x, z) > 0.6) add(R() < 0.6 ? 'flower' : 'pebble', x, heightAt(x, z), z, 0.7 + R() * 0.6);
     }
   }
   const loader = propLoader(), q = [];
@@ -65,7 +66,7 @@ export async function buildNature(scene, renderer, spots) {
 
 // Troca a geometria de InstancedMeshes procedurais (milharal, tapete de grama) por um modelo Quaternius,
 // mantendo matrizes/cores/material (fade do milharal, vento da grama continuam funcionando).
-export async function reskin(meshes, id, { scale = 1, hue = [0.25, 0.04], sat = 0.3, light = [0.72, 0.12] } = {}) {
+export async function reskin(meshes, id, { split = 0, scale = 1, hue = [0.25, 0.04], sat = 0.3, light = [0.72, 0.12] } = {}) {
   const g = await propLoader().loadAsync(`/packs/nature/${id}.glb`); let src = null;
   g.scene.traverse((o) => { if (o.isMesh && !src) src = o; });
   if (!src) return;

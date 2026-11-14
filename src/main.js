@@ -31,14 +31,12 @@ const rig = new CameraRig(innerWidth / innerHeight);
 const world = buildWorld(scene, renderer, quality);
 if (world.nat?.length) import('./world/nature.js').then((m) => {
   m.buildNature(scene, renderer, world.nat);
-  m.reskin(world.brushMeshes, 'Grass_Wispy_Tall', { scale: [1.1, 2.8], hue: [0.19, 0.03], sat: 0.22, light: [0.62, 0.1] });    // milharal: capim alto (fade de esconderijo mantido)
-  m.reskin([world.grass], 'U_Grass_Small', { scale: [1.1, 1.0], sat: 0.25, light: [0.62, 0.1] });             // tapete de grama
 });
 if (q.get('ph') === '1') import('./world/dressing.js').then((m) => m.dress(scene, renderer));   // props Poly Haven (fotorreal) — fora do estilo novo
 const post = createPost(renderer, scene, rig.camera, quality, { ...Object.fromEntries(q), ink: style === 'hq' });
 
 function resize() {
-  const pr = Math.min(devicePixelRatio, quality === 'high' ? 2 : 1), w = innerWidth, h = innerHeight;
+  const pr = Math.min(devicePixelRatio, quality === 'high' ? 1.25 : 1), w = innerWidth, h = innerHeight;
   renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
   rig.resize(w / h); post.setSize(w, h, pr);
 }

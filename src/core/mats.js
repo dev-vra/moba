@@ -59,6 +59,7 @@ function boxUV(g, sc, tile) {
 }
 
 // Collects transformed geometry per material and merges into one mesh per material.
+const CELL = 24;
 export class Batch {
   constructor() { this.map = new Map(); this.stack = [new THREE.Matrix4()]; }
   get top() { return this.stack[this.stack.length - 1]; }
@@ -95,13 +96,25 @@ export class Batch {
     if (!this.map.has(mat)) this.map.set(mat, []);
     this.map.get(mat).push(g);
   }
-  build(parent, layer = 0) {
-    const grp = new THREE.Group();
+  // Funde por material E por célula espacial: malhas do tamanho do mapa nunca saem do frustum (tudo era
+  // desenhado sempre, inclusive no passe de sombra/normal). Com células, só o que a câmera vê é renderizado.
+  build(parent, layer = 0, cell = CELL) {
+    const grp = new THREE.Group(), box = new THREE.Box3(), ctr = new THREE.Vector3();
     for (const [mat, list] of this.map) {
-      const mesh = new THREE.Mesh(mergeGeometries(list), mat);
-      mesh.castShadow = mesh.receiveShadow = !mat.userData.noShadow;
-      if (mat.transparent) mesh.layers.set(1); else mesh.layers.set(layer);
-      list.forEach((g) => g.dispose()); grp.add(mesh);
+      const cells = new Map();
+      for (const g of list) {
+        g.computeBoundingBox(); box.copy(g.boundingBox).getCenter(ctr);
+        const big = box.max.x - box.min.x > cell * 1.5 || box.max.z - box.min.z > cell * 1.5;   // peças enormes (chão, cercas longas) ficam juntas
+        const key = big ? 'big' : `${Math.floor(ctr.x / cell)},${Math.floor(ctr.z / cell)}`;
+        if (!cells.has(key)) cells.set(key, []); cells.get(key).push(g);
+      }
+      for (const part of cells.values()) {
+        const mesh = new THREE.Mesh(mergeGeometries(part), mat);
+        mesh.castShadow = mesh.receiveShadow = !mat.userData.noShadow;
+        if (mat.transparent) mesh.layers.set(1); else mesh.layers.set(layer);
+        grp.add(mesh);
+      }
+      list.forEach((g) => g.dispose());
     }
     this.map.clear(); parent.add(grp); return grp;
   }
